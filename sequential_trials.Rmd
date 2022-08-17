@@ -44,6 +44,7 @@ sim1.combined <- cbind.data.frame('vax'=c(0,1), 'N_cases'= c(sim1.control,sim1.v
 
 ```
 
+Logistic regression model with informative prior
 
 ```{r}
 model_string <- "
@@ -134,8 +135,8 @@ meanpost <- mean(posterior_samples.all[,'beta1'])
 sdpost <- sd(posterior_samples.all[,'beta1'])
 ypost <- dnorm(x, mean=meanpost, sd=sdpost)
 
-plot(x, ypost,type='l', lwd=2, col='red', bty='l')
-points(x,y, type = "l", lwd = 2)
+plot(x, ypost,type='l', lwd=2, col='red', bty='l', )
+points(x,y, type = "l", lwd = 2, col='gray80')
 
 ```
 
