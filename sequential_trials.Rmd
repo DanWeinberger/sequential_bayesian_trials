@@ -1,0 +1,141 @@
+---
+title: "Sequential trials"
+output: html_document
+date: '2022-08-17'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rjags)
+library(HDInterval)
+library(dplyr)
+library(stringr)
+```
+
+
+VE from Novavax
+```{r}
+ve.obs <- c(39.4, 5.3, 61.2) #mean and 95% CI (note the 97.5% CI was used for evaluationpurposes due to spending rule)
+irr.obs <- 1-ve.obs/100
+
+log_irr.obs <- log(irr.obs)
+
+#compare mean to upper and lower CI, and take mean of that
+se.obs <- mean(c( abs(log_irr.obs[1] - log_irr.obs[3]), abs(log_irr.obs[1] - log_irr.obs[2])))/1.96
+
+prec.log.irr.obs <- 1/se.obs^2
+```
+
+## Scenario 1: Same VE as original trial
+Novvax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
+```{r}
+set.seed(123)
+ve.true1 <- ve.obs[1]
+irr.true1 <- 1 - ve.true1/100
+
+N.vax <- 3045
+N.control <- 1581
+rate.control <- 0.024
+
+sim1.control <- rbinom(1,N.control, rate.control) 
+sim1.vax <- rbinom(1,N.vax, rate.control*irr.true1) 
+
+sim1.combined <- cbind.data.frame('vax'=c(0,1), 'N_cases'= c(sim1.control,sim1.vax), 'pop'=c(N.control,N.vax))
+
+```
+
+
+```{r}
+model_string <- "
+model{
+for(i in 1:2){ 
+  N_cases[i] ~ dbinom(pi[i], pop[i])
+  
+  logit(pi[i]) <- int  +  vax[i]*beta1 
+
+} 
+  
+
+  int ~ dnorm(0, 1e-4)
+  
+  beta1 ~ dnorm(log_irr.obs, prec.log.irr.obs )
+
+}
+"
+
+
+
+##############################################################
+#Model Fitting
+##############################################################
+inits1=list(".RNG.seed"=c(123), ".RNG.name"='base::Wichmann-Hill')
+inits2=list(".RNG.seed"=c(456), ".RNG.name"='base::Wichmann-Hill')
+inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
+
+
+##############################################
+#Model Organization
+##############################################
+model_spec<-textConnection(model_string)
+model_jags<-jags.model(model_spec, 
+                       inits=list(inits1,inits2, inits3),
+                       data=list('N_cases'=sim1.combined$N_cases,
+                                 'vax'=sim1.combined$vax, #could use whole dataset but would take a long time
+                                  'pop'=sim1.combined$pop,
+                                 'log_irr.obs'=log_irr.obs[1],
+                                 'prec.log.irr.obs'=prec.log.irr.obs
+                                    ),
+                       n.adapt=10000, 
+                       n.chains=3)
+
+
+params<-c('int', 'beta1')
+
+##############################################
+#Posterior Sampling
+##############################################
+posterior_samples<-coda.samples(model_jags, 
+                                params, 
+                                n.iter=10000)
+
+posterior_samples.all<-do.call(rbind,posterior_samples)
+#post1.summary<-summary(posterior_samples)
+#post_means<-colMeans(posterior_samples.all)
+post_means<-apply(posterior_samples.all, 2, mean)
+sample.labs<-names(post_means)
+ci<-t(hdi(posterior_samples.all, credMass = 0.95))
+#ci<-matrix(sprintf("%.1f",round(ci,1)), ncol=2)
+ci<-matrix(ci, ncol=2)
+
+row.names(ci)<-sample.labs
+#post_means<-sprintf("%.1f",round(post_means,1))
+names(post_means)<-sample.labs
+
+indices <- str_extract_all(names(post_means), "(?<=\\[).+?(?=\\])")
+rep1 <- sapply(indices, function(x) identical(x, character(0))) #is it missing ie character(0)
+indices[which(rep1==1)] <- '999'
+
+
+index_n <- as.numeric(unlist(indices))
+
+combined <- cbind.data.frame(post_means, ci,index_n )
+names(combined) <- c('mean','lcl','ucl','index_t')
+
+post_beta <- combined[grep('beta',names(post_means)),]
+
+```
+
+## Prior vs posterior
+```{r}
+x <- seq(-4, 4, length=100)
+y <- dnorm(x, mean=log_irr.obs[1], sd=sqrt(1/prec.log.irr.obs))
+
+meanpost <- mean(posterior_samples.all[,'beta1'])
+sdpost <- sd(posterior_samples.all[,'beta1'])
+ypost <- dnorm(x, mean=meanpost, sd=sdpost)
+
+plot(x, ypost,type='l', lwd=2, col='red', bty='l')
+points(x,y, type = "l", lwd = 2)
+
+```
+
