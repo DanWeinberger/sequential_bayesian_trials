@@ -1,4 +1,4 @@
-call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4, repN=1, model.select=model_string_basic_logit){
+call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4, repN=1, model.select=model_string_basic_pois){
 
   #Select replicate from the data generated in sim.data.R
   vax.status=sim.ds$vax[sim.ds$rep==repN]
@@ -39,7 +39,7 @@ params<-c('int', 'beta1', 'alpha', 'actual_prior_prec')
 ##############################################
 posterior_samples<-coda.samples(model_jags, 
                                 params, 
-                                n.iter=10000,quiet=T)
+                                n.iter=10000,quiet=T,progress.bar='none')
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 

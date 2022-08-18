@@ -14,9 +14,11 @@ library(pbapply)
 source('./R/prior.data.func.R')
 source('./R/call_jags.R')
 source('./R/sim.data.R')
-source('./R/jags_basic_logit.R')
+source('./R/jags_basic_pois.R')
+source('./R/jags_modified_pois.R')
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
+N.sim=100
 
 ```
 
@@ -28,13 +30,12 @@ prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2)
 
 
 ## Scenario 1: Same VE as original trial
-Novvax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
+Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
 ```{r}
 set.seed(123)
-N.sim=10
 
-sim1 <- sim.data.func(N.vax = 3045,
-                     N.control = 1581,
+sim1 <- sim.data.func(N.vax = 300,
+                     N.control = 150,
                      rate.control = 0.024,
                      ve.new.trial=prior.data$ve.obs.mean,
                      n.sim=N.sim)
@@ -43,10 +44,9 @@ sim1 <- sim.data.func(N.vax = 3045,
 Scenario 2: no actual effect
 ```{r}
 set.seed(123)
-N.sim=10
 
-sim2 <- sim.data.func(N.vax = 3045,
-                     N.control = 1581,
+sim2 <- sim.data.func(N.vax = 300,
+                     N.control = 150,
                      rate.control = 0.024,
                      ve.new.trial=0,
                      n.sim=N.sim)
@@ -68,12 +68,12 @@ Informative prior, with mean and precision from Novavax
  mod2b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
 ```
 Informative prior, but with Alpha to downweight variance if needed
-```{r}
- mod3a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_logit) )
+```{r, echo=FALSE}
+ mod3a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
 
- mod3b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_logit) )
+ mod3b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
 
-```
+``` 
 
 
 

@@ -1,9 +1,9 @@
-model_string_basic_logit <- "
+model_string_basic_pois <- "
 model{
 for(i in 1:2){ 
-  N_cases[i] ~ dbinom(pi[i], pop[i])
+  N_cases[i] ~ dpois(lambda[i])
   
-  logit(pi[i]) <- int  +  vax[i]*beta1 
+  log(lambda[i]) <- int  +  vax[i]*beta1 + log(pop[i])
 
 } 
   
