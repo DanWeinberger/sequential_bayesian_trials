@@ -55,10 +55,10 @@ names(post_means)<-sample.labs
 
 post_var <- apply(posterior_samples.all,2, var)
 
-combined <- cbind.data.frame(post_means, ci ,post_var,prior.mean)
-names(combined) <- c('mean','lcl','ucl', 'var', 'prior.mean')
+combined <- cbind.data.frame(post_means, ci ,post_var,prior.mean, repN,names(post_means))
+names(combined) <- c('mean','lcl','ucl', 'var', 'prior.mean', 'repN', 'parm')
 
-post_beta <- combined[grep('beta',names(post_means)),]
+#post_beta <- combined[grep('beta',names(post_means)),]
 
 return(combined)
 }

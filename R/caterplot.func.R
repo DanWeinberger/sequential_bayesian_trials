@@ -1,11 +1,13 @@
-caterplot.func <- function(mod.ds){
-cater.df <- lapply(mod.ds, function(x) as.data.frame(matrix( unlist(x['beta', c('mean','lcl','ucl')]), ncol=3))) %>%
-  bind_rows() %>%
-  rename(mean=V1, lcl=V2, ucl=V3) %>%
-  mutate(repN=row_number())
+caterplot.func <- function(mod.ds,mod.version='mod1a', samp_size_selecter=1, parm.select='beta1'){
+cater.df.list <- sapply(all.mods,'[[',mod.version, simplify=F) %>%
+  lapply( function(x){ 
+    bind_rows(x)
+  })
 
-
+cater.df <- cater.df.list[[samp_size_selecter]] %>%
+  filter(parm==parm.select)
 power <- mean(cater.df$ucl <0)
+
 pc1 <- ggplot(cater.df, aes(y=repN, x=mean)) +
   geom_point() + 
   theme_classic()+

@@ -19,7 +19,9 @@ source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois.R')
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
-N.sim=500
+source('./R/run_all_models.R')
+
+N.sim=3
 
 ```
 
@@ -34,7 +36,7 @@ Set parameters for new trial population
 ```{r}
 
 #Sample sizes for vaccinee group
-N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000, 2500, 3000)
+N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000, 2500, 3000, 3500)
 
 #Sample sizes for control group
 N.control.test <- round(N.vax.test/2)
@@ -73,30 +75,59 @@ sim2 <- mapply(FUN=sim.data.func,
 
 Call all models for both simulated datasets
 ```{r, eval=F}
-all.mods <- pbmapply(FUN=run_all_models,sim1, sim2 )
+all.mods <- pbmapply(FUN=run_all_models,sim1, sim2 , SIMPLIFY=F)
 
 saveRDS(all.mods, './Results/all.mods.rds')
 ```
 
 
+extract 
+```{r}
+mod.3a <- sapply(all.mods,'[[','mod3a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
 
+mod.2a <- sapply(all.mods,'[[','mod2a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
+
+mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
+
+
+```
 
 How do the three models perform when there is NO real effect?
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(mod1b) +
-caterplot.func(mod2b)+
-caterplot.func(mod3b)
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')
+
+```
+For a larger dataset
+```{r, fig.width=6, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=10,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=10,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=10,parm.select='beta1')
 
 ```
 
 How do the three models perform when there is a real effect?
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(mod1a) +
-caterplot.func(mod2a)+
-caterplot.func(mod3a)
-
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')
 ```
 
+## Alpha 
+```{r, fig.width=3, fig.height=3}
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='alpha') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='alpha') 
+```
 
 ## Prior vs posterior
 ```{r}
