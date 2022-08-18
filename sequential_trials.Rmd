@@ -19,7 +19,7 @@ source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois.R')
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
-N.sim=100
+N.sim=500
 
 ```
 
@@ -29,52 +29,55 @@ VE from Novavax. This function takes the mean and 95% CI of vaccine effectivenes
 prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2)
 ```
 
+Set parameters for new trial population
+
+```{r}
+
+#Sample sizes for vaccinee group
+N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000, 2500, 3000)
+
+#Sample sizes for control group
+N.control.test <- round(N.vax.test/2)
+
+#proportion of kids in placebo group who get the outcome
+set.rate.control <- 0.024 
+
+#VE in the new trial
+set.ve.new.trial=prior.data$ve.obs.mean
+```
 
 ## Scenario 1: Same VE as original trial
 Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
 ```{r}
 set.seed(123)
 
-sim1 <- sim.data.func(N.vax = 600,
-                     N.control = 300,
-                     rate.control = 0.024,
-                     ve.new.trial=prior.data$ve.obs.mean,
-                     n.sim=N.sim)
+sim1 <- mapply(FUN=sim.data.func, 
+       N.vax=N.vax.test, 
+       N.control=N.control.test,  
+       rate.control=set.rate.control, 
+       ve.new.trial=set.ve.new.trial,
+       n.sim=N.sim, SIMPLIFY = F)
 ```
 
-Scenario 2: no actual effect
+## Scenario 2: no actual effect
 ```{r}
-set.seed(123)
+set.seed(456)
 
-sim2 <- sim.data.func(N.vax = 600,
-                     N.control = 300,
-                     rate.control = 0.024,
-                     ve.new.trial=0,
-                     n.sim=N.sim)
+sim2 <- mapply(FUN=sim.data.func, 
+       N.vax=N.vax.test, 
+       N.control=N.control.test,  
+       rate.control=set.rate.control, 
+       ve.new.trial=0,
+       n.sim=N.sim, SIMPLIFY = F)
 ```
 
-Logistic regression model with uninformative prior
+Call all models for both simulated datasets
+```{r, eval=F}
+all.mods <- pbmapply(FUN=run_all_models,sim1, sim2 )
 
-test when there is or is not an effect in the follow up study
-```{r}
- mod1a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1, prior.mean=0, prior.prec=1e-4,repN=x))
-
- mod1b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2, prior.mean=0, prior.prec=1e-4,repN=x))
+saveRDS(all.mods, './Results/all.mods.rds')
 ```
 
-Informative prior, with mean and precision from Novavax
-```{r}
- mod2a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
-
- mod2b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
-```
-Informative prior, but with Alpha to downweight variance if needed
-```{r, echo=FALSE}
- mod3a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
-
- mod3b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
-
-``` 
 
 
 
@@ -118,5 +121,26 @@ density_compare_mod2b[[1]]
 density_compare_mod3b[[1]]
 
 ```
+
+## Across a range of sample sizes:
+Power and type 1 error for the 3 models
+```{r}
+samp_size <- c(300,600,1000,1500,2000,3000)
+
+powerA= c(0.06,0.12,0.24,0.33,0.45, 0.60)
+powerB= c(0.87,0.83,0.87, 0.91, 0.90, 0.92)
+powerC= c(0.07,0.31,0.48,0.63, 0.68, 0.78)
+
+type1_A = c(0.02,0.01,0.02, 0.03,0.03, 0.03)
+type1_B = c(0.64, 0.49, 0.39, 0.29,0.25, 0.25)
+type1_C = c(0.04, 0.06, 0.05, 0.13,0.12, 0.12)
+
+plot(samp_size, powerC)
+
+
+  
+  
+```
+
 
 
