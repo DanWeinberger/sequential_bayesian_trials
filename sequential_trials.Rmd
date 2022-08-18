@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(rjags)
 library(HDInterval)
 library(dplyr)
+library(patchwork)
 library(stringr)
 library(pbapply)
 source('./R/prior.data.func.R')
@@ -34,8 +35,8 @@ Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary 
 ```{r}
 set.seed(123)
 
-sim1 <- sim.data.func(N.vax = 300,
-                     N.control = 150,
+sim1 <- sim.data.func(N.vax = 600,
+                     N.control = 300,
                      rate.control = 0.024,
                      ve.new.trial=prior.data$ve.obs.mean,
                      n.sim=N.sim)
@@ -45,8 +46,8 @@ Scenario 2: no actual effect
 ```{r}
 set.seed(123)
 
-sim2 <- sim.data.func(N.vax = 300,
-                     N.control = 150,
+sim2 <- sim.data.func(N.vax = 600,
+                     N.control = 300,
                      rate.control = 0.024,
                      ve.new.trial=0,
                      n.sim=N.sim)
@@ -78,17 +79,17 @@ Informative prior, but with Alpha to downweight variance if needed
 
 
 How do the three models perform when there is NO real effect?
-```{r}
-caterplot.func(mod1b)
-caterplot.func(mod2b)
+```{r, fig.width=6, fig.height=3}
+caterplot.func(mod1b) +
+caterplot.func(mod2b)+
 caterplot.func(mod3b)
 
 ```
 
 How do the three models perform when there is a real effect?
-```{r}
-caterplot.func(mod1a)
-caterplot.func(mod2a)
+```{r, fig.width=6, fig.height=3}
+caterplot.func(mod1a) +
+caterplot.func(mod2a)+
 caterplot.func(mod3a)
 
 ```

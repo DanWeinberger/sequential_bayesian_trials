@@ -5,11 +5,13 @@ cater.df <- lapply(mod.ds, function(x) as.data.frame(matrix( unlist(x['beta', c(
   mutate(repN=row_number())
 
 
+power <- mean(cater.df$ucl <0)
 pc1 <- ggplot(cater.df, aes(y=repN, x=mean)) +
   geom_point() + 
   theme_classic()+
   xlim(-2, 2) + 
   geom_pointrange(aes(xmax=ucl, xmin=lcl))+
-  geom_vline(xintercept=0, lty=2, col='gray80')
+  geom_vline(xintercept=0, lty=2, col='gray80') +
+  ggtitle(paste0("Power ", round(100*power), '%'))
 return(pc1)
 }
