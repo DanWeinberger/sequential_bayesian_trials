@@ -10,133 +10,112 @@ library(rjags)
 library(HDInterval)
 library(dplyr)
 library(stringr)
+library(pbapply)
+source('./R/prior.data.func.R')
+source('./R/call_jags.R')
+source('./R/sim.data.R')
+source('./R/jags_basic_logit.R')
+source('./R/caterplot.func.R')
+source('./R/prior_post_compare.R')
+
 ```
 
 
-VE from Novavax
+VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
-ve.obs <- c(39.4, 5.3, 61.2) #mean and 95% CI (note the 97.5% CI was used for evaluationpurposes due to spending rule)
-irr.obs <- 1-ve.obs/100
-
-log_irr.obs <- log(irr.obs)
-
-#compare mean to upper and lower CI, and take mean of that
-se.obs <- mean(c( abs(log_irr.obs[1] - log_irr.obs[3]), abs(log_irr.obs[1] - log_irr.obs[2])))/1.96
-
-prec.log.irr.obs <- 1/se.obs^2
+prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2)
 ```
+
 
 ## Scenario 1: Same VE as original trial
 Novvax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
 ```{r}
 set.seed(123)
-ve.true1 <- ve.obs[1]
-irr.true1 <- 1 - ve.true1/100
+N.sim=10
 
-N.vax <- 3045
-N.control <- 1581
-rate.control <- 0.024
-
-sim1.control <- rbinom(1,N.control, rate.control) 
-sim1.vax <- rbinom(1,N.vax, rate.control*irr.true1) 
-
-sim1.combined <- cbind.data.frame('vax'=c(0,1), 'N_cases'= c(sim1.control,sim1.vax), 'pop'=c(N.control,N.vax))
-
+sim1 <- sim.data.func(N.vax = 3045,
+                     N.control = 1581,
+                     rate.control = 0.024,
+                     ve.new.trial=prior.data$ve.obs.mean,
+                     n.sim=N.sim)
 ```
 
-Logistic regression model with informative prior
-
+Scenario 2: no actual effect
 ```{r}
-model_string <- "
-model{
-for(i in 1:2){ 
-  N_cases[i] ~ dbinom(pi[i], pop[i])
-  
-  logit(pi[i]) <- int  +  vax[i]*beta1 
+set.seed(123)
+N.sim=10
 
-} 
-  
+sim2 <- sim.data.func(N.vax = 3045,
+                     N.control = 1581,
+                     rate.control = 0.024,
+                     ve.new.trial=0,
+                     n.sim=N.sim)
+```
 
-  int ~ dnorm(0, 1e-4)
-  
-  beta1 ~ dnorm(log_irr.obs, prec.log.irr.obs )
+Logistic regression model with uninformative prior
 
-}
-"
+test when there is or is not an effect in the follow up study
+```{r}
+ mod1a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1, prior.mean=0, prior.prec=1e-4,repN=x))
 
+ mod1b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2, prior.mean=0, prior.prec=1e-4,repN=x))
+```
 
+Informative prior, with mean and precision from Novavax
+```{r}
+ mod2a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
 
-##############################################################
-#Model Fitting
-##############################################################
-inits1=list(".RNG.seed"=c(123), ".RNG.name"='base::Wichmann-Hill')
-inits2=list(".RNG.seed"=c(456), ".RNG.name"='base::Wichmann-Hill')
-inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
+ mod2b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
+```
+Informative prior, but with Alpha to downweight variance if needed
+```{r}
+ mod3a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_logit) )
 
-
-##############################################
-#Model Organization
-##############################################
-model_spec<-textConnection(model_string)
-model_jags<-jags.model(model_spec, 
-                       inits=list(inits1,inits2, inits3),
-                       data=list('N_cases'=sim1.combined$N_cases,
-                                 'vax'=sim1.combined$vax, #could use whole dataset but would take a long time
-                                  'pop'=sim1.combined$pop,
-                                 'log_irr.obs'=log_irr.obs[1],
-                                 'prec.log.irr.obs'=prec.log.irr.obs
-                                    ),
-                       n.adapt=10000, 
-                       n.chains=3)
-
-
-params<-c('int', 'beta1')
-
-##############################################
-#Posterior Sampling
-##############################################
-posterior_samples<-coda.samples(model_jags, 
-                                params, 
-                                n.iter=10000)
-
-posterior_samples.all<-do.call(rbind,posterior_samples)
-#post1.summary<-summary(posterior_samples)
-#post_means<-colMeans(posterior_samples.all)
-post_means<-apply(posterior_samples.all, 2, mean)
-sample.labs<-names(post_means)
-ci<-t(hdi(posterior_samples.all, credMass = 0.95))
-#ci<-matrix(sprintf("%.1f",round(ci,1)), ncol=2)
-ci<-matrix(ci, ncol=2)
-
-row.names(ci)<-sample.labs
-#post_means<-sprintf("%.1f",round(post_means,1))
-names(post_means)<-sample.labs
-
-indices <- str_extract_all(names(post_means), "(?<=\\[).+?(?=\\])")
-rep1 <- sapply(indices, function(x) identical(x, character(0))) #is it missing ie character(0)
-indices[which(rep1==1)] <- '999'
-
-
-index_n <- as.numeric(unlist(indices))
-
-combined <- cbind.data.frame(post_means, ci,index_n )
-names(combined) <- c('mean','lcl','ucl','index_t')
-
-post_beta <- combined[grep('beta',names(post_means)),]
+ mod3b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_logit) )
 
 ```
+
+
+
+How do the three models perform when there is NO real effect?
+```{r}
+caterplot.func(mod1b)
+caterplot.func(mod2b)
+caterplot.func(mod3b)
+
+```
+
+How do the three models perform when there is a real effect?
+```{r}
+caterplot.func(mod1a)
+caterplot.func(mod2a)
+caterplot.func(mod3a)
+
+```
+
 
 ## Prior vs posterior
 ```{r}
-x <- seq(-4, 4, length=100)
-y <- dnorm(x, mean=log_irr.obs[1], sd=sqrt(1/prec.log.irr.obs))
+density_compare_mod1a <- lapply(mod1a, function(y) prior_post_compare(y))
 
-meanpost <- mean(posterior_samples.all[,'beta1'])
-sdpost <- sd(posterior_samples.all[,'beta1'])
-ypost <- dnorm(x, mean=meanpost, sd=sdpost)
+density_compare_mod1b <- lapply(mod1a, function(y) prior_post_compare(y))
 
-plot(x, ypost,type='l', lwd=2, col='red', bty='l', )
-points(x,y, type = "l", lwd = 2, col='gray80')
+density_compare_mod2a <- lapply(mod2a, function(y) prior_post_compare(y))
+
+density_compare_mod2b <- lapply(mod2b, function(y) prior_post_compare(y))
+
+density_compare_mod3a <- lapply(mod3a, function(y) prior_post_compare(y))
+
+density_compare_mod3b <- lapply(mod3b, function(y) prior_post_compare(y))
+
+density_compare_mod2a[[1]]
+
+density_compare_mod3a[[1]]
+
+density_compare_mod2b[[1]]
+
+density_compare_mod3b[[1]]
 
 ```
+
 
