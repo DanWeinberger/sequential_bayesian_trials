@@ -23,8 +23,9 @@ for(i in 1:2){
 
   delta ~ dnorm(0, 1e-4)
   
-  alpha ~ dunif(0, 1)
+  logit_alpha ~ dunif(0, 1e-4)
 
+  alpha <- exp(logit_alpha/(1+logit_alpha))
 
 }
 "
