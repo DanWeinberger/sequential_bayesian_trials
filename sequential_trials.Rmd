@@ -12,23 +12,24 @@ library(dplyr)
 library(patchwork)
 library(stringr)
 library(pbapply)
+library(ggplot2)
 source('./R/prior.data.func.R')
 source('./R/call_jags.R')
 source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
-source('./R/jags_modified_pois_TEST2.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_TEST3.R') #NOTE, this is experimental version
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
 source('./R/run_all_models.R')
 
-N.sim=5
+N.sim=10
 
 ```
 
 
 VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
-prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2)
+prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
 ```
 
 Set parameters for new trial population
@@ -41,8 +42,10 @@ N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000, 2500, 3000, 3500)
 #Sample sizes for control group
 N.control.test <- round(N.vax.test/2)
 
-#proportion of kids in placebo group who get the outcome
+#proportion of kids in placebo group who get the outcome set to 0.024 for Noavavx
+#set.rate.control <- 0.024 
 set.rate.control <- 0.024 
+
 
 #VE in the new trial
 set.ve.new.trial=prior.data$ve.obs.mean
@@ -133,6 +136,45 @@ caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='b
 ```{r, fig.width=3, fig.height=3}
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='alpha') +
   caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='alpha') 
+
+
+all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
+all.mods[[11]]$mod3a[[1]][1,'mean'] #large pop, real effect in new trial
+
+all.mods[[1]]$mod3b[[1]][1,'mean'] #small pop, no effect in new trial
+all.mods[[11]]$mod3b[[1]][1,'mean'] #large pop, no effect in new trial
+```
+
+## Delta 
+Estimate using data from the original trial. In all 3 instances, delta has an uninformative prior. It doesn't seem that addition of data from new trial influences estimation of delta (which is maybe surprising for larger sample when beta and delta are the same mean. 
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='delta') +
+
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='delta') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='delta') +
+
+    caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='delta') 
+
+
+all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
+
+parms1 <- extract_parm(all.mods,mod.version='mod1a', samp_size_selecter=1, parm.select='delta')
+IRR1 <- 100*(1-exp(c(mean(parms1$mean), mean(parms1$lcl), mean(parms1$ucl))))
+
+parms2 <- extract_parm(all.mods,mod.version='mod2a', samp_size_selecter=1, parm.select='delta')
+IRR2 <- 100*(1-exp(c(mean(parms2$mean), mean(parms2$lcl), mean(parms2$ucl))))
+
+parms3 <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=1, parm.select='delta')
+IRR3 <- 100*(1-exp(c(mean(parms3$mean), mean(parms3$lcl), mean(parms3$ucl))))
+
+#same but with larger sample
+parms3b <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=11, parm.select='delta')
+IRR3b <- 100*(1-exp(c(mean(parms3b$mean), mean(parms3b$lcl), mean(parms3b$ucl))))
+
+IRR1
+IRR2
+IRR3
+IRR3b
 ```
 
 ## Prior vs posterior
