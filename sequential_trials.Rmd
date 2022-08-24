@@ -80,6 +80,10 @@ all.mods <- pbmapply(FUN=run_all_models,sim1, sim2 , SIMPLIFY=F)
 saveRDS(all.mods, './Results/all.mods.rds')
 ```
 
+```{r}
+all.mods <- readRDS( './Results/all.mods.rds')
+
+```
 
 extract 
 ```{r}
@@ -131,8 +135,8 @@ caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='b
 
 ## Alpha 
 ```{r, fig.width=3, fig.height=3}
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='alpha') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='alpha') 
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='alpha[1]') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='alpha[1]') 
 ```
 
 ## Prior vs posterior
