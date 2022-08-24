@@ -16,16 +16,12 @@ for(i in 1:2){
   int ~ dnorm(0, 1e-4)
 
   int_orig ~ dnorm(0, 1e-4)
-  
-  beta1 <- delta*alpha + eta*(1-alpha)
-  
-  eta ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1e-4)
+  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
   
-  logit_alpha ~ dunif(0, 1e-4)
+  beta1 ~ dnorm(delta, 100*alpha) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
 
-  alpha <- exp(logit_alpha/(1+logit_alpha))
+  alpha ~ dgamma(0.01, 0.01)T(1e-6, 1)
 
 }
 "

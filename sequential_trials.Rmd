@@ -20,9 +20,11 @@ source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois_TEST3.R') #NOTE, this is experimental version
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
+source('./R/extract_parm.R')
+
 source('./R/run_all_models.R')
 
-N.sim=10
+N.sim=100
 
 ```
 
@@ -117,9 +119,9 @@ caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='b
 ```
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=10,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=10,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=10,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')
 
 ```
 
