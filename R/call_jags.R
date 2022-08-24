@@ -26,13 +26,15 @@ model_jags<-jags.model(model_spec,
                                  'vax'=vax.status, #could use whole dataset but would take a long time
                                  'pop'=pop,
                                  'log_irr.obs'=prior.mean,
-                                 'prec.log.irr.obs'=prior.prec
+                                 'prec.log.irr.obs'=prior.prec,
+                                 'N_cases_orig'=prior.data$N_cases_orig,
+                                 'pop_orig'= prior.data$pop_orig
                        ),
                        n.adapt=10000, 
                        n.chains=3, quiet=T)
 
 
-params<-c('int', 'beta1', 'alpha', 'actual_prior_prec')
+params<-c('int', 'beta1', 'alpha', 'delta')
 
 ##############################################
 #Posterior Sampling
