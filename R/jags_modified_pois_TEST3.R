@@ -1,3 +1,5 @@
+#Commensurate prior: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4007051/
+#https://onlinelibrary.wiley.com/doi/10.1111/j.1541-0420.2011.01564.x
 model_string_modified_pois <- "
 model{
 for(i in 1:2){ 
@@ -17,11 +19,13 @@ for(i in 1:2){
 
   int_orig ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
+  delta ~ dnorm(0, tau) #uninformative prior for original trial
   
-  beta1 ~ dnorm(delta, 100*alpha) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
+  beta1 ~ dnorm(delta, tau*alpha) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
 
   alpha ~ dgamma(0.01, 0.01)T(1e-6, 1)
+  
+  tau ~ dgamma(0.01, 0.01)
 
 }
 "

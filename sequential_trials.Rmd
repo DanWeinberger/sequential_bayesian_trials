@@ -24,7 +24,7 @@ source('./R/extract_parm.R')
 
 source('./R/run_all_models.R')
 
-N.sim=100
+N.sim=20
 
 ```
 
@@ -32,6 +32,10 @@ N.sim=100
 VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
 prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
+
+#Try larger initial sample
+#prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(350,410), pop_orig= c(1430, 2765))
+
 ```
 
 Set parameters for new trial population
@@ -133,9 +137,9 @@ caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='b
 ```
 or for a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=5,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=11,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=11,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='beta1')
 ```
 
 ## Alpha 
