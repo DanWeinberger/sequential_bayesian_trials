@@ -15,9 +15,15 @@ run_all_models <- function(sim.ds1, sim.ds2){
   
 ## Informative prior, but with Alpha to downweight variance if needed
   
-  mod3a <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
+  mod3a <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_gamma) )
   
-  mod3b <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
+  mod3b <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_gamma) )
 
-  out.list= list('mod1a'=mod1a,'mod1b'=mod1b, 'mod2a'=mod2a,'mod2b'=mod2b, 'mod3a'=mod3a,'mod3b'=mod3b )
+  
+  mod4a <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_hcauchy) )
+  
+  mod4b <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_hcauchy) )
+  
+  
+  out.list= list('mod1a'=mod1a,'mod1b'=mod1b, 'mod2a'=mod2a,'mod2b'=mod2b, 'mod3a'=mod3a,'mod3b'=mod3b,'mod4a'=mod4a,'mod4b'=mod4b )
 }

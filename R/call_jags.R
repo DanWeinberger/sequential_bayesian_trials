@@ -12,8 +12,8 @@ call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4, repN=1, model.selec
 #Model Fitting
 ##############################################################
 inits1=list(".RNG.seed"=c(123), ".RNG.name"='base::Wichmann-Hill')
-inits2=list(".RNG.seed"=c(456), ".RNG.name"='base::Wichmann-Hill')
-inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
+#inits2=list(".RNG.seed"=c(456), ".RNG.name"='base::Wichmann-Hill')
+#inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
 
 
 ##############################################
@@ -21,7 +21,7 @@ inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
 ##############################################
 model_spec<-textConnection(model.select)
 model_jags<-jags.model(model_spec, 
-                       inits=list(inits1,inits2, inits3),
+                       inits=list(inits1), #,inits2, inits3),
                        data=list('N_cases'=N_cases,
                                  'vax'=vax.status, #could use whole dataset but would take a long time
                                  'pop'=pop,
@@ -30,18 +30,18 @@ model_jags<-jags.model(model_spec,
                                  'N_cases_orig'=prior.data$N_cases_orig,
                                  'pop_orig'= prior.data$pop_orig
                        ),
-                       n.adapt=10000, 
+                       n.adapt=5000, 
                        n.chains=3, quiet=T)
 
 
-params<-c('int', 'beta1', 'alpha', 'delta')
+params<-c('int', 'beta1', 'alpha', 'delta', 'tau')
 
 ##############################################
 #Posterior Sampling
 ##############################################
 posterior_samples<-coda.samples(model_jags, 
                                 params, 
-                                n.iter=10000,quiet=T,progress.bar='none')
+                                n.iter=20000,quiet=T,progress.bar='none')
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 

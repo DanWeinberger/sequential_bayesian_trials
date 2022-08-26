@@ -1,4 +1,4 @@
-model_string_modified_pois <- "
+model_string_commensurate_gamma <- "
 model{
 for(i in 1:2){ 
 

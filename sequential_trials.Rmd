@@ -17,15 +17,34 @@ source('./R/prior.data.func.R')
 source('./R/call_jags.R')
 source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
-source('./R/jags_modified_pois_commensurate.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_hcauchy.R') #NOTE, this is experimental version
+
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
 source('./R/extract_parm.R')
 
 source('./R/run_all_models.R')
 
-N.sim=5
+N.sim=20
 
+```
+
+
+```{r}
+# hist(rgamma(1000,1,0.001))
+# 
+# mean(rgamma(1000,1,0.001))
+# 
+# 
+# mean(rgamma(10000,1,0.001))
+# 
+#        sigma <- rt(10000, 25, 1)
+#  	    prec <- 1/(sigma^2)
+# # 	    
+# # 	    mean(prec)
+# library(extraDistr)
+# prec2 <- rhcauchy(10000,sigma=0.2)
 ```
 
 
