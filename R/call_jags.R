@@ -31,10 +31,10 @@ model_jags<-jags.model(model_spec,
                                  'pop_orig'= prior.data$pop_orig
                        ),
                        n.adapt=5000, 
-                       n.chains=3, quiet=T)
+                       n.chains=1, quiet=T)
 
 
-params<-c('int', 'beta1', 'alpha', 'delta', 'tau')
+params<-c('int', 'beta1', 'delta', 'tau')
 
 ##############################################
 #Posterior Sampling

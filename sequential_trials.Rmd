@@ -19,6 +19,7 @@ source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
 source('./R/jags_modified_pois_commensurate_hcauchy.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_uniform.R') #NOTE, this is experimental version
 
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
@@ -32,12 +33,18 @@ N.sim=20
 
 
 ```{r}
-# hist(rgamma(1000,1,0.001))
-# 
-# mean(rgamma(1000,1,0.001))
-# 
-# 
-# mean(rgamma(10000,1,0.001))
+hist(rgamma(1000,1,0.001))
+
+#SD
+sd <- 1/sqrt(rgamma(10000,1,0.1))
+
+mean(1/sqrt(rgamma(10000,1,0.1)))
+median(1/sqrt(rgamma(10000,1,0.1)))
+
+hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
+
+rnorm(1000,0, 0.5)
+
 # 
 #        sigma <- rt(10000, 25, 1)
 #  	    prec <- 1/(sigma^2)
@@ -115,6 +122,10 @@ all.mods <- readRDS( './Results/all.mods.rds')
 
 extract 
 ```{r}
+mod.4a <- sapply(all.mods,'[[','mod4a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
 mod.3a <- sapply(all.mods,'[[','mod3a', simplify=F) %>%
   lapply( function(x){ 
   bind_rows(x)
@@ -134,17 +145,20 @@ mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
 ```
 
 How do the three models perform when there is NO real effect?
-```{r, fig.width=6, fig.height=3}
+```{r, fig.width=8, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
+
+  caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1')
 
 ```
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=5,parm.select='beta1')
 
 ```
 
@@ -152,19 +166,22 @@ How do the three models perform when there is a real effect?
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1')
 ```
 or for a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=11,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=11,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
+
+  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')
 ```
 
 ## Alpha 
 ```{r, fig.width=3, fig.height=3}
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='alpha') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='alpha') 
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau') 
 
 
 all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial

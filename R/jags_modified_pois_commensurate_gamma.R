@@ -13,20 +13,22 @@ for(i in 1:2){
 
 } 
   
-
-  int ~ dnorm(0, 1e-4)
-
+#Priors for original trial
   int_orig ~ dnorm(0, 1e-4)
 
   delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
-  
+
+# Priors from new trial
+
+  int ~ dnorm(0, 1e-4)
+
   beta1 ~ dnorm(delta, tau) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
 
-  tau ~ dgamma(1, 0.001) # gamma hyperprior from psborrow
+ # tau ~ dgamma(1, 0.001) # gamma hyperprior from psborrow
+  tau ~ dgamma(0.001, 0.001) # gamma hyperprior from psborrow
 
-    ### Cauchy hyper-prior from psborrow
-      #sigma ~ dt(0, 25, 1)
-	    #prec <- 1/(sigma^2)
+	    a1 <- prec.log.irr.obs
+	    a2 <- log_irr.obs
 
 }
 "
