@@ -147,7 +147,7 @@ mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
 
 How do the three models perform when there is NO real effect?
 
-3:Gamma, 4:Half-Cauchy
+3:Gamma, 4:Half-Cauchy 5: mixture model
 ```{r, fig.width=8, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
@@ -174,7 +174,7 @@ caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='b
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') 
+caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=1,parm.select='beta1') 
 
 
 ```
@@ -185,6 +185,16 @@ caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='b
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
   caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')+
   caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=9,parm.select='beta1')
+
+```
+
+or for a larger dataset
+```{r, fig.width=6, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=5,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='beta1')+
+  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=5,parm.select='beta1')+
+  caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=5,parm.select='beta1')
 
 ```
 
