@@ -23,8 +23,9 @@ for(i in 1:2){
 
   delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
   
-  beta1  <- delta*step(alpha-0.5) + eta*(1- step(alpha-0.5))
-  
+  #beta1  <- delta*step(alpha-0.5) + eta*(1- step(alpha-0.5))
+  beta1  <- delta*alpha + eta*(1-alpha)
+
   eta ~ dnorm(0, 1e-4) 
   
   alpha ~ dunif(0,1)

@@ -187,7 +187,7 @@ caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='b
 
 ```
 
-or for a larger dataset
+or for a medium dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=5,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=5,parm.select='beta1')+
