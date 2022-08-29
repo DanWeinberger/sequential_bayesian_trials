@@ -12,88 +12,219 @@ library(dplyr)
 library(patchwork)
 library(stringr)
 library(pbapply)
+library(ggplot2)
 source('./R/prior.data.func.R')
 source('./R/call_jags.R')
 source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
-source('./R/jags_modified_pois.R')
+source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_hcauchy.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_uniform.R') #NOTE, this is experimental version
+
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
-N.sim=100
+source('./R/extract_parm.R')
 
+source('./R/run_all_models.R')
+
+N.sim=20
+
+```
+
+
+```{r}
+hist(rgamma(1000,1,0.001))
+
+#SD
+sd <- 1/sqrt(rgamma(10000,1,0.1))
+
+mean(1/sqrt(rgamma(10000,1,0.1)))
+median(1/sqrt(rgamma(10000,1,0.1)))
+
+hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
+
+rnorm(1000,0, 0.5)
+
+# 
+        sigma <- abs(rlst(n=10000,df=1, sigma=1/sqrt(50), mu=0) )
+  	    prec <- 1/(sigma^2)
+# # 	    
+# # 	    mean(prec)
+# library(extraDistr)
+# prec2 <- rhcauchy(10000,sigma=0.2)
 ```
 
 
 VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
-prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2)
+prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
+
+#Try larger initial sample
+#prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(350,410), pop_orig= c(1430, 2765))
+
 ```
 
+Set parameters for new trial population
+
+```{r}
+
+#Sample sizes for vaccinee group
+N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000, 2500, 3000, 3500)
+
+#Sample sizes for control group
+N.control.test <- round(N.vax.test/2)
+
+#proportion of kids in placebo group who get the outcome set to 0.024 for Noavavx
+#set.rate.control <- 0.024 
+set.rate.control <- 0.024 
+
+
+#VE in the new trial
+set.ve.new.trial=prior.data$ve.obs.mean
+```
 
 ## Scenario 1: Same VE as original trial
 Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
 ```{r}
 set.seed(123)
 
-sim1 <- sim.data.func(N.vax = 600,
-                     N.control = 300,
-                     rate.control = 0.024,
-                     ve.new.trial=prior.data$ve.obs.mean,
-                     n.sim=N.sim)
+sim1 <- mapply(FUN=sim.data.func, 
+       N.vax=N.vax.test, 
+       N.control=N.control.test,  
+       rate.control=set.rate.control, 
+       ve.new.trial=set.ve.new.trial,
+       n.sim=N.sim, SIMPLIFY = F)
 ```
 
-Scenario 2: no actual effect
+## Scenario 2: no actual effect
 ```{r}
-set.seed(123)
+set.seed(456)
 
-sim2 <- sim.data.func(N.vax = 600,
-                     N.control = 300,
-                     rate.control = 0.024,
-                     ve.new.trial=0,
-                     n.sim=N.sim)
+sim2 <- mapply(FUN=sim.data.func, 
+       N.vax=N.vax.test, 
+       N.control=N.control.test,  
+       rate.control=set.rate.control, 
+       ve.new.trial=0,
+       n.sim=N.sim, SIMPLIFY = F)
 ```
 
-Logistic regression model with uninformative prior
+Call all models for both simulated datasets
+```{r, eval=F}
+all.mods <- pbmapply(FUN=run_all_models,sim1, sim2 , SIMPLIFY=F)
 
-test when there is or is not an effect in the follow up study
+saveRDS(all.mods, './Results/all.mods.rds')
+```
+
 ```{r}
- mod1a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1, prior.mean=0, prior.prec=1e-4,repN=x))
+all.mods <- readRDS( './Results/all.mods.rds')
 
- mod1b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2, prior.mean=0, prior.prec=1e-4,repN=x))
 ```
 
-Informative prior, with mean and precision from Novavax
+extract 
 ```{r}
- mod2a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
+mod.4a <- sapply(all.mods,'[[','mod4a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
+mod.3a <- sapply(all.mods,'[[','mod3a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
 
- mod2b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x))
+mod.2a <- sapply(all.mods,'[[','mod2a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
+
+mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
+  lapply( function(x){ 
+  bind_rows(x)
+    })
+
+
 ```
-Informative prior, but with Alpha to downweight variance if needed
-```{r, echo=FALSE}
- mod3a <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
-
- mod3b <- pblapply(1:N.sim, function(x) call_jags(sim.ds=sim2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_modified_pois) )
-
-``` 
-
-
 
 How do the three models perform when there is NO real effect?
+
+3:Gamma, 4:Half-Cauchy
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
+
+  caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1')
+
+
+```
+For a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(mod1b) +
-caterplot.func(mod2b)+
-caterplot.func(mod3b)
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=5,parm.select='beta1')
 
 ```
 
 How do the three models perform when there is a real effect?
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(mod1a) +
-caterplot.func(mod2a)+
-caterplot.func(mod3a)
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') 
+```
+or for a larger dataset
+```{r, fig.width=6, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
+  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')
 
 ```
 
+## Alpha 
+```{r, fig.width=3, fig.height=3}
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau') 
+
+
+all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
+all.mods[[11]]$mod3a[[1]][1,'mean'] #large pop, real effect in new trial
+
+all.mods[[1]]$mod3b[[1]][1,'mean'] #small pop, no effect in new trial
+all.mods[[11]]$mod3b[[1]][1,'mean'] #large pop, no effect in new trial
+```
+
+## Delta 
+Estimate using data from the original trial. In all 3 instances, delta has an uninformative prior. It doesn't seem that addition of data from new trial influences estimation of delta (which is maybe surprising for larger sample when beta and delta are the same mean. 
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='delta') +
+
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='delta') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='delta') +
+
+    caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='delta') 
+
+
+all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
+
+parms1 <- extract_parm(all.mods,mod.version='mod1a', samp_size_selecter=1, parm.select='delta')
+IRR1 <- 100*(1-exp(c(mean(parms1$mean), mean(parms1$lcl), mean(parms1$ucl))))
+
+parms2 <- extract_parm(all.mods,mod.version='mod2a', samp_size_selecter=1, parm.select='delta')
+IRR2 <- 100*(1-exp(c(mean(parms2$mean), mean(parms2$lcl), mean(parms2$ucl))))
+
+parms3 <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=1, parm.select='delta')
+IRR3 <- 100*(1-exp(c(mean(parms3$mean), mean(parms3$lcl), mean(parms3$ucl))))
+
+#same but with larger sample
+parms3b <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=11, parm.select='delta')
+IRR3b <- 100*(1-exp(c(mean(parms3b$mean), mean(parms3b$lcl), mean(parms3b$ucl))))
+
+IRR1
+IRR2
+IRR3
+IRR3b
+```
 
 ## Prior vs posterior
 ```{r}
@@ -118,5 +249,46 @@ density_compare_mod2b[[1]]
 density_compare_mod3b[[1]]
 
 ```
+
+## Across a range of sample sizes:
+Power and type 1 error for the 3 models
+```{r}
+samp_size <- c(300,600,1000,1500,2000,3000)
+
+powerA= c(0.06,0.12,0.24,0.33,0.45, 0.60)
+powerB= c(0.87,0.83,0.87, 0.91, 0.90, 0.92)
+powerC= c(0.07,0.31,0.48,0.63, 0.68, 0.78)
+
+type1_A = c(0.02,0.01,0.02, 0.03,0.03, 0.03)
+type1_B = c(0.64, 0.49, 0.39, 0.29,0.25, 0.25)
+type1_C = c(0.04, 0.06, 0.05, 0.13,0.12, 0.12)
+
+plot(samp_size, powerC)
+
+
+  
+  
+```
+
+```{r}
+  x <- seq(-4, 4, length=100)
+alpha1=1e-6
+alpha2=0.5
+alpha3=0.25
+
+  prior.y1 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha1))
+  
+    prior.y2 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha2))
+
+   prior.y3 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha3))
+
+  
+  plot(x, prior.y1, type='l')
+    points(x, prior.y2, type='l', col='red')
+    points(x, prior.y3, type='l', col='blue')
+
+```
+
+
 
 

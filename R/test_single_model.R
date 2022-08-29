@@ -1,19 +1,23 @@
-call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4, repN=1, model.select=model_string_basic_pois){
 
-  #Select replicate from the data generated in sim.data.R
-  vax.status=sim.ds$vax[sim.ds$rep==repN]
+repN=1
+sim.ds <- sim1[[10]]
+model.select = model_string_modified_pois
+#Select replicate from the data generated in sim.data.R
+vax.status=sim.ds$vax[sim.ds$rep==repN]
+prior.mean=prior.data$log_irr.obs[1]
+prior.prec=prior.data$prec.log.irr.obs
 
-  pop=sim.ds$pop[sim.ds$rep==repN]
-  
-  N_cases=sim.ds$N_cases[sim.ds$rep==repN]
+pop=sim.ds$pop[sim.ds$rep==repN]
+
+N_cases=sim.ds$N_cases[sim.ds$rep==repN]
 
 
 ##############################################################
 #Model Fitting
 ##############################################################
 inits1=list(".RNG.seed"=c(123), ".RNG.name"='base::Wichmann-Hill')
-#inits2=list(".RNG.seed"=c(456), ".RNG.name"='base::Wichmann-Hill')
-#inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
+inits2=list(".RNG.seed"=c(456), ".RNG.name"='base::Wichmann-Hill')
+inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
 
 
 ##############################################
@@ -21,29 +25,32 @@ inits1=list(".RNG.seed"=c(123), ".RNG.name"='base::Wichmann-Hill')
 ##############################################
 model_spec<-textConnection(model.select)
 model_jags<-jags.model(model_spec, 
-                       inits=list(inits1), #,inits2, inits3),
+                       inits=list(inits1,inits2, inits3),
                        data=list('N_cases'=N_cases,
                                  'vax'=vax.status, #could use whole dataset but would take a long time
                                  'pop'=pop,
                                  'log_irr.obs'=prior.mean,
-                                 'prec.log.irr.obs'=prior.prec,
-                                 'N_cases_orig'=prior.data$N_cases_orig,
-                                 'pop_orig'= prior.data$pop_orig
+                                 'prec.log.irr.obs'=prior.prec
                        ),
-                       n.adapt=5000, 
-                       n.chains=1, quiet=T)
+                       n.adapt=10000, 
+                       n.chains=3, quiet=T)
 
 
-params<-c('int', 'beta1', 'delta', 'tau')
+params<-c('int', 'beta1', 'alpha')
 
 ##############################################
 #Posterior Sampling
 ##############################################
 posterior_samples<-coda.samples(model_jags, 
                                 params, 
-                                n.iter=20000,quiet=T,progress.bar='none')
+                                n.iter=10000,quiet=T,progress.bar='none')
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
+
+plot(posterior_samples.all[,'alpha[1]'], type='l')
+plot(posterior_samples.all[,'beta1'], type='l')
+
+mean(posterior_samples.all[,'alpha[1]'])
 
 post_means<-apply(posterior_samples.all, 2, mean)
 sample.labs<-names(post_means)
@@ -61,6 +68,3 @@ combined <- cbind.data.frame(post_means, ci ,post_var,prior.mean, repN,names(pos
 names(combined) <- c('mean','lcl','ucl', 'var', 'prior.mean', 'repN', 'parm')
 
 #post_beta <- combined[grep('beta',names(post_means)),]
-
-return(combined)
-}
