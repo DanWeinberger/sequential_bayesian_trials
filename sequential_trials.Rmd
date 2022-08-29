@@ -13,6 +13,7 @@ library(patchwork)
 library(stringr)
 library(pbapply)
 library(ggplot2)
+library(extraDistr)
 source('./R/prior.data.func.R')
 source('./R/call_jags.R')
 source('./R/sim.data.R')
@@ -44,9 +45,7 @@ median(1/sqrt(rgamma(10000,1,0.1)))
 
 hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
 
-rnorm(1000,0, 0.5)
-
-# 
+ 
         sigma <- abs(rlst(n=10000,df=1, sigma=1/sqrt(50), mu=0) )
   	    prec <- 1/(sigma^2)
 # # 	    

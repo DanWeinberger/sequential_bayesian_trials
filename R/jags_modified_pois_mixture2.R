@@ -27,12 +27,11 @@ for(i in 1:2){
   
   eta ~ dnorm(0, 1e-4) 
   
-  alpha ~ dgamma(0.01, 0.01)T(1e-6, 1)
+  alpha ~ dunif(0,1)
   
-  tau ~ dgamma(0.01, 0.01)
-  
+
   a=prec.log.irr.obs
   b=log_irr.obs
-
+  tau=1
 }
 "
