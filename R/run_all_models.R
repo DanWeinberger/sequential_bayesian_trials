@@ -24,10 +24,11 @@ run_all_models <- function(sim.ds1, sim.ds2){
   
   mod4b <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_hcauchy) )
   
-  mod5a <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_uniform) )
+
+  #mod5a <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds1,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_uniform) )
   
-  mod5b <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_uniform) )
+  #mod5b <- lapply(1:N.sim, function(x) call_jags(sim.ds=sim.ds2,prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs,repN=x, model.select=model_string_commensurate_uniform) )
   
   
-  out.list= list('mod1a'=mod1a,'mod1b'=mod1b, 'mod2a'=mod2a,'mod2b'=mod2b, 'mod3a'=mod3a,'mod3b'=mod3b,'mod4a'=mod4a,'mod4b'=mod4b, 'mod5a'=mod5a, 'mod5b'=mod5b )
+  out.list= list('mod1a'=mod1a,'mod1b'=mod1b, 'mod2a'=mod2a,'mod2b'=mod2b, 'mod3a'=mod3a,'mod3b'=mod3b,'mod4a'=mod4a,'mod4b'=mod4b) #, 'mod5a'=mod5a, 'mod5b'=mod5b )
 }

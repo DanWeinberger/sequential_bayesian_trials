@@ -25,7 +25,7 @@ for(i in 1:2){
   beta1 ~ dnorm(delta, tau) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
 
  # tau ~ dgamma(1, 0.001) # gamma hyperprior from psborrow
-  tau ~ dgamma(0.001, 0.001) # gamma hyperprior from psborrow
+  tau ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow
 
 	    a1 <- prec.log.irr.obs
 	    a2 <- log_irr.obs

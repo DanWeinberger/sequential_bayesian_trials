@@ -46,8 +46,8 @@ hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
 rnorm(1000,0, 0.5)
 
 # 
-#        sigma <- rt(10000, 25, 1)
-#  	    prec <- 1/(sigma^2)
+        sigma <- abs(rlst(n=10000,df=1, sigma=1/sqrt(50), mu=0) )
+  	    prec <- 1/(sigma^2)
 # # 	    
 # # 	    mean(prec)
 # library(extraDistr)
@@ -145,12 +145,15 @@ mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
 ```
 
 How do the three models perform when there is NO real effect?
+
+3:Gamma, 4:Half-Cauchy
 ```{r, fig.width=8, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
 
   caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1')
+
 
 ```
 For a larger dataset
@@ -167,15 +170,15 @@ How do the three models perform when there is a real effect?
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') 
 ```
 or for a larger dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
-
   caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')
+
 ```
 
 ## Alpha 

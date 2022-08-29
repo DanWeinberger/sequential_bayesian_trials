@@ -25,7 +25,7 @@ for(i in 1:2){
   beta1 ~ dnorm(delta, tau) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
 
     
-      sigma ~ dt(0, 25, 1) ### halfCauchy hyper-prior from psborrow
+      sigma ~ dt(0, 25, 4) 
 	    tau <- 1/(sigma^2 + 1e-6) 
 
 	    a1 <- prec.log.irr.obs
