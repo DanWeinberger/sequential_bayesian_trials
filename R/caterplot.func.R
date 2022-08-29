@@ -6,7 +6,7 @@ cater.df.list <- sapply(all.mods,'[[',mod.version, simplify=F) %>%
 
 cater.df <- cater.df.list[[samp_size_selecter]] %>%
   filter(parm==parm.select)
-power <- mean(cater.df$ucl <0)
+power <- mean(cater.df$lcl >0)
 
 pc1 <- ggplot(cater.df, aes(y=repN, x=mean)) +
   geom_point() + 

@@ -1,4 +1,4 @@
-call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4, repN=1, model.select=model_string_basic_pois){
+call_jags <- function(sim.ds, repN=1, model.select=model_string_basic_pois){
 
   #Select replicate from the data generated in sim.data.R
   vax.status=sim.ds$vax[sim.ds$rep==repN]
@@ -25,10 +25,9 @@ model_jags<-jags.model(model_spec,
                        data=list('N_cases'=N_cases,
                                  'vax'=vax.status, #could use whole dataset but would take a long time
                                  'pop'=pop,
-                                 'log_irr.obs'=prior.mean,
-                                 'prec.log.irr.obs'=prior.prec,
                                  'N_cases_orig'=prior.data$N_cases_orig,
                                  'pop_orig'= prior.data$pop_orig
+                                
                        ),
                        n.adapt=5000, 
                        n.chains=1, quiet=T)
@@ -57,8 +56,8 @@ names(post_means)<-sample.labs
 
 post_var <- apply(posterior_samples.all,2, var)
 
-combined <- cbind.data.frame(post_means, ci ,post_var,prior.mean, repN,names(post_means))
-names(combined) <- c('mean','lcl','ucl', 'var', 'prior.mean', 'repN', 'parm')
+combined <- cbind.data.frame(post_means, ci ,post_var, repN,names(post_means))
+names(combined) <- c('mean','lcl','ucl', 'var', 'repN', 'parm')
 
 #post_beta <- combined[grep('beta',names(post_means)),]
 

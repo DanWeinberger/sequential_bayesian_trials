@@ -27,7 +27,7 @@ source('./R/extract_parm.R')
 
 source('./R/run_all_models.R')
 
-N.sim=20
+N.sim=100
 
 ```
 
@@ -55,9 +55,10 @@ rnorm(1000,0, 0.5)
 ```
 
 
-VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
+VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision from the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
-prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
+#NOTE! These do not do anything: ve.obs.mean=1e-4, log_irr.obs=0
+prior.data <- prior.data.func( N_cases_orig =c(6,8), ve.obs.mean=0,ve.obs.lcl=0, ve.obs.ucl=0, pop_orig= c(26, 23))
 
 #Try larger initial sample
 #prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(350,410), pop_orig= c(1430, 2765))
@@ -69,22 +70,21 @@ Set parameters for new trial population
 ```{r}
 
 #Sample sizes for vaccinee group
-N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000, 2500, 3000, 3500)
+N.vax.test <- c(249)
 
 #Sample sizes for control group
-N.control.test <- round(N.vax.test/2)
+N.control.test <- c(240)
 
 #proportion of kids in placebo group who get the outcome set to 0.024 for Noavavx
-#set.rate.control <- 0.024 
-set.rate.control <- 0.024 
+set.rate.control <- 0.23 #
 
 
 #VE in the new trial
-set.ve.new.trial=prior.data$ve.obs.mean
+set.ve.new.trial= -51 #(IRR=1.51)
 ```
 
 ## Scenario 1: Same VE as original trial
-Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
+
 ```{r}
 set.seed(123)
 
@@ -147,148 +147,19 @@ mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
 How do the three models perform when there is NO real effect?
 
 3:Gamma, 4:Half-Cauchy
-```{r, fig.width=8, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
 
-  caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1')
-
-
-```
-For a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=5,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1')
 
 ```
 
 How do the three models perform when there is a real effect?
+
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') 
-```
-or for a larger dataset
-```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
-  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')
+  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1')
 
 ```
-
-## Alpha 
-```{r, fig.width=3, fig.height=3}
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau') 
-
-
-all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
-all.mods[[11]]$mod3a[[1]][1,'mean'] #large pop, real effect in new trial
-
-all.mods[[1]]$mod3b[[1]][1,'mean'] #small pop, no effect in new trial
-all.mods[[11]]$mod3b[[1]][1,'mean'] #large pop, no effect in new trial
-```
-
-## Delta 
-Estimate using data from the original trial. In all 3 instances, delta has an uninformative prior. It doesn't seem that addition of data from new trial influences estimation of delta (which is maybe surprising for larger sample when beta and delta are the same mean. 
-```{r, fig.width=8, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='delta') +
-
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='delta') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='delta') +
-
-    caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='delta') 
-
-
-all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
-
-parms1 <- extract_parm(all.mods,mod.version='mod1a', samp_size_selecter=1, parm.select='delta')
-IRR1 <- 100*(1-exp(c(mean(parms1$mean), mean(parms1$lcl), mean(parms1$ucl))))
-
-parms2 <- extract_parm(all.mods,mod.version='mod2a', samp_size_selecter=1, parm.select='delta')
-IRR2 <- 100*(1-exp(c(mean(parms2$mean), mean(parms2$lcl), mean(parms2$ucl))))
-
-parms3 <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=1, parm.select='delta')
-IRR3 <- 100*(1-exp(c(mean(parms3$mean), mean(parms3$lcl), mean(parms3$ucl))))
-
-#same but with larger sample
-parms3b <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=11, parm.select='delta')
-IRR3b <- 100*(1-exp(c(mean(parms3b$mean), mean(parms3b$lcl), mean(parms3b$ucl))))
-
-IRR1
-IRR2
-IRR3
-IRR3b
-```
-
-## Prior vs posterior
-```{r}
-density_compare_mod1a <- lapply(mod1a, function(y) prior_post_compare(y))
-
-density_compare_mod1b <- lapply(mod1a, function(y) prior_post_compare(y))
-
-density_compare_mod2a <- lapply(mod2a, function(y) prior_post_compare(y))
-
-density_compare_mod2b <- lapply(mod2b, function(y) prior_post_compare(y))
-
-density_compare_mod3a <- lapply(mod3a, function(y) prior_post_compare(y))
-
-density_compare_mod3b <- lapply(mod3b, function(y) prior_post_compare(y))
-
-density_compare_mod2a[[1]]
-
-density_compare_mod3a[[1]]
-
-density_compare_mod2b[[1]]
-
-density_compare_mod3b[[1]]
-
-```
-
-## Across a range of sample sizes:
-Power and type 1 error for the 3 models
-```{r}
-samp_size <- c(300,600,1000,1500,2000,3000)
-
-powerA= c(0.06,0.12,0.24,0.33,0.45, 0.60)
-powerB= c(0.87,0.83,0.87, 0.91, 0.90, 0.92)
-powerC= c(0.07,0.31,0.48,0.63, 0.68, 0.78)
-
-type1_A = c(0.02,0.01,0.02, 0.03,0.03, 0.03)
-type1_B = c(0.64, 0.49, 0.39, 0.29,0.25, 0.25)
-type1_C = c(0.04, 0.06, 0.05, 0.13,0.12, 0.12)
-
-plot(samp_size, powerC)
-
-
-  
-  
-```
-
-```{r}
-  x <- seq(-4, 4, length=100)
-alpha1=1e-6
-alpha2=0.5
-alpha3=0.25
-
-  prior.y1 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha1))
-  
-    prior.y2 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha2))
-
-   prior.y3 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha3))
-
-  
-  plot(x, prior.y1, type='l')
-    points(x, prior.y2, type='l', col='red')
-    points(x, prior.y3, type='l', col='blue')
-
-```
-
-
-
-

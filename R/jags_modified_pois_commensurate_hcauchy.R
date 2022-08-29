@@ -28,8 +28,7 @@ for(i in 1:2){
       sigma ~ dt(0, 25, 1) ### halfCauchy hyper-prior from psborrow
 	    tau <- 1/(sigma^2 + 1e-6) 
 
-	    a1 <- prec.log.irr.obs
-	    a2 <- log_irr.obs
+
 
 }
 "
