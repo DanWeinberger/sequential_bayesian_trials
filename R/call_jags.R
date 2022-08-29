@@ -34,7 +34,7 @@ model_jags<-jags.model(model_spec,
                        n.chains=1, quiet=T)
 
 
-params<-c('int', 'beta1', 'delta', 'tau')
+params<-c('int', 'beta1', 'delta', 'tau', 'alpha')
 
 ##############################################
 #Posterior Sampling

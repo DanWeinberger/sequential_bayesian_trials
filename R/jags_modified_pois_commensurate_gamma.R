@@ -29,6 +29,7 @@ for(i in 1:2){
 
 	    a1 <- prec.log.irr.obs
 	    a2 <- log_irr.obs
+	    alpha=1
 
 }
 "

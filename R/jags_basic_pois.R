@@ -23,5 +23,6 @@ for(i in 1:2){
   delta ~ dnorm(0, 1e-4)
 
   tau=1
+  alpha=1
 }
 "
