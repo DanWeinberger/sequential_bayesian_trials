@@ -20,6 +20,7 @@ source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
 source('./R/jags_modified_pois_commensurate_hcauchy.R') #NOTE, this is experimental version
 source('./R/jags_modified_pois_commensurate_uniform.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_mixture2.R') #NOTE, this is experimental version
 
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
@@ -152,16 +153,18 @@ caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='b
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
 
-  caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1')
+  caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1') +
 
+  caterplot.func(all.mods, mod.version='mod5b',samp_size_selecter=1,parm.select='beta1') 
 
 ```
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=5,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=9,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=9,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=9,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=9,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod5b',samp_size_selecter=9,parm.select='beta1')
 
 ```
 
@@ -170,14 +173,18 @@ How do the three models perform when there is a real effect?
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') 
+
+
 ```
 or for a larger dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
-  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')
+  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')+
+  caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=9,parm.select='beta1')
 
 ```
 
