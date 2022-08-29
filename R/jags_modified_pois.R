@@ -13,6 +13,7 @@ for(i in 1:2){
   beta1 ~ dnorm(log_irr.obs, prec.log.irr.obs*alpha )
   
   alpha ~ dunif(1e-6, 1-(1e-6) )
+  #alpha ~ dgamma(0.01, 0.01)T(1e-6, 1)
   
   actual_prior_prec = prec.log.irr.obs*alpha
 
