@@ -199,8 +199,8 @@ caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='b
 
 ## Alpha 
 ```{r, fig.width=3, fig.height=3}
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau') 
+caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=1,parm.select='alpha') +
+  caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=11,parm.select='alpha') 
 
 
 all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial

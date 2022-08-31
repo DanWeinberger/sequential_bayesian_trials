@@ -1,7 +1,7 @@
 
 repN=1
-sim.ds <- sim1[[10]]
-model.select = model_string_modified_pois
+sim.ds <- sim2[[12]]
+model.select = model_string_modified_pois_mixture
 #Select replicate from the data generated in sim.data.R
 vax.status=sim.ds$vax[sim.ds$rep==repN]
 prior.mean=prior.data$log_irr.obs[1]
@@ -25,18 +25,20 @@ inits3=list(".RNG.seed"=c(789), ".RNG.name"='base::Wichmann-Hill')
 ##############################################
 model_spec<-textConnection(model.select)
 model_jags<-jags.model(model_spec, 
-                       inits=list(inits1,inits2, inits3),
+                       inits=list(inits1), #,inits2, inits3),
                        data=list('N_cases'=N_cases,
                                  'vax'=vax.status, #could use whole dataset but would take a long time
                                  'pop'=pop,
                                  'log_irr.obs'=prior.mean,
-                                 'prec.log.irr.obs'=prior.prec
+                                 'prec.log.irr.obs'=prior.prec,
+                                 'N_cases_orig'=prior.data$N_cases_orig,
+                                 'pop_orig'= prior.data$pop_orig
                        ),
-                       n.adapt=10000, 
-                       n.chains=3, quiet=T)
+                       n.adapt=5000, 
+                       n.chains=1, quiet=T)
 
 
-params<-c('int', 'beta1', 'alpha')
+params<-c('int', 'beta1', 'delta', 'tau', 'alpha','eta')
 
 ##############################################
 #Posterior Sampling
@@ -47,10 +49,14 @@ posterior_samples<-coda.samples(model_jags,
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
-plot(posterior_samples.all[,'alpha[1]'], type='l')
-plot(posterior_samples.all[,'beta1'], type='l')
+#plot(posterior_samples.all[,'logit_alpha'], type='l')
 
-mean(posterior_samples.all[,'alpha[1]'])
+plot(posterior_samples.all[,'alpha'], type='l')
+plot(posterior_samples.all[,'delta'], type='l', ylim=c(-1.0,1.0))
+
+plot(posterior_samples.all[,'beta1'], type='l', ylim=c(-1.0,1.0))
+plot(posterior_samples.all[,'eta'], type='l', ylim=c(-1.0,1.0))
+
 
 post_means<-apply(posterior_samples.all, 2, mean)
 sample.labs<-names(post_means)

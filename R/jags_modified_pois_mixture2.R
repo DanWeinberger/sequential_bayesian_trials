@@ -21,15 +21,16 @@ for(i in 1:2){
 
   int_orig ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
+  delta ~ dnorm(0, 5) #uninformative prior for original trial
   
-  beta1  <- delta*step(alpha-0.5) + eta*(1- step(alpha-0.5))
-  #beta1  <- delta*alpha + eta*(1-alpha)
+  beta1  <- delta*mix.select + eta*(1- mix.select)
+  
+  eta ~ dnorm(0, 5) 
+  
+  mix.select ~ dbern(alpha)
+  
+ alpha ~ dunif(0,1)
 
-  eta ~ dnorm(0, 1e-4) 
-  
-  alpha ~ dunif(0,1)
-  
 
   a=prec.log.irr.obs
   b=log_irr.obs
