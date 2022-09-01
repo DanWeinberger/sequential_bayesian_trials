@@ -9,8 +9,6 @@ for(i in 1:2){
   log(mu[i]) <- int_orig + (i-1)*delta + log(pop_orig[i]*100000)
 
 
-
-
   N_cases[i] ~ dpois(lambda[i]) #Likelihood for data from new trial
   
   log(lambda[i])  <- int  +  vax[i]*beta1 + log(pop[i]*100000)
@@ -23,15 +21,18 @@ for(i in 1:2){
 
   int_orig ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1) #uninformative prior for original trial
+  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
   
-  beta1  <- delta*mix.select + eta*(1- mix.select)
+  #beta1  <- delta*mix.select + eta*(1- mix.select)
   
-  eta ~ dnorm(0, 1) #Highly informativ 
+  beta1  <- delta + exp(eta0) #Ordered prior! https://mc-stan.org/users/documentation/case-studies/identifying_mixture_models
+  
+  eta0 ~ dnorm(0, 1e-4) #Highly informativ 
   
   mix.select ~ dbern(alpha)
   
- alpha ~ dunif(0,1)
+ #alpha ~ dunif(0,1)
+ alpha ~ dbeta(1,1)
 
 
   a=prec.log.irr.obs
