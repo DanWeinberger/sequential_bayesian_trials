@@ -58,6 +58,9 @@ plot(posterior_samples.all[,'beta1'], type='l', ylim=c(-1.0,1.0))
 plot(posterior_samples.all[,'eta'], type='l', ylim=c(-1.0,1.0))
 
 
+#hist(posterior_samples.all[,'alpha']*posterior_samples.all[,'eta'])
+
+
 post_means<-apply(posterior_samples.all, 2, mean)
 sample.labs<-names(post_means)
 ci<-t(hdi(posterior_samples.all, credMass = 0.95))
