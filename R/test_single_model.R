@@ -1,15 +1,18 @@
 
-repN=1
-sim.ds <- sim2[[12]]
+
+fun1 <- function( samp.size,repN){
+sim.ds <- sim2[[samp.size]]
 model.select = model_string_modified_pois_mixture
 #Select replicate from the data generated in sim.data.R
-vax.status=sim.ds$vax[sim.ds$rep==repN]
+vax.status=sim.ds$vax[sim.ds$rep %in% repN]
+
+
 prior.mean=prior.data$log_irr.obs[1]
 prior.prec=prior.data$prec.log.irr.obs
 
-pop=sim.ds$pop[sim.ds$rep==repN]
+pop=sim.ds$pop[sim.ds$rep %in% repN]
 
-N_cases=sim.ds$N_cases[sim.ds$rep==repN]
+N_cases=sim.ds$N_cases[sim.ds$rep %in% repN]
 
 
 ##############################################################
@@ -38,7 +41,7 @@ model_jags<-jags.model(model_spec,
                        n.chains=1, quiet=T)
 
 
-params<-c('int', 'beta1', 'delta', 'tau', 'alpha','eta')
+params<-c('int', 'beta1', 'delta', 'tau', 'alpha','eta', 'mix.select')
 
 ##############################################
 #Posterior Sampling
@@ -49,14 +52,50 @@ posterior_samples<-coda.samples(model_jags,
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
+return(posterior_samples.all[,'alpha'])
+}
+
+
+alphas <- pblapply(1:N.sim, function(x) lapply( 1:length(sim2),  function(y) fun1(samp.size=y,  repN=x))  ) 
+
+
+
 #plot(posterior_samples.all[,'logit_alpha'], type='l')
 
 plot(posterior_samples.all[,'alpha'], type='l')
+hist(posterior_samples.all[,'alpha'])
+
+
+mean(posterior_samples.all[1:2000,'alpha'])
+mean(posterior_samples.all[8:10000,'alpha'])
+
+plot(posterior_samples.all[,'tau'], type='l')
+hist(posterior_samples.all[,'tau'])
+mean(posterior_samples.all[1:2000,'tau'])
+mean(posterior_samples.all[8:10000,'tau'])
+
+
+mean(posterior_samples.all[,'mix.select'])
+
+
 plot(posterior_samples.all[,'delta'], type='l', ylim=c(-1.0,1.0))
+exp(mean(posterior_samples.all[,'delta'])) #well-estimated without bias
+
 
 plot(posterior_samples.all[,'beta1'], type='l', ylim=c(-1.0,1.0))
-plot(posterior_samples.all[,'eta'], type='l', ylim=c(-1.0,1.0))
+exp(mean(posterior_samples.all[,'beta1']))
 
+plot(exp(posterior_samples.all[,'eta0']), type='l')
+
+
+plot(posterior_samples.all[,'beta1'], posterior_samples.all[,'delta'], ylim=c(-3,3), xlim=c(-3,3))
+abline(h=0, v=0)
+
+plot(posterior_samples.all[,'beta1'], posterior_samples.all[,'alpha'], ylim=c(-3,3), xlim=c(-3,3))
+abline(h=0, v=0)
+
+plot(posterior_samples.all[,'delta'], posterior_samples.all[,'alpha'], ylim=c(-3,3), xlim=c(-3,3))
+abline(h=0, v=0)
 
 post_means<-apply(posterior_samples.all, 2, mean)
 sample.labs<-names(post_means)
