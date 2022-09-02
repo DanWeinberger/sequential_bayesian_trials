@@ -1,8 +1,8 @@
 
-
+load.module('glm')
 fun1 <- function( samp.size,repN){
 sim.ds <- sim2[[samp.size]]
-model.select = model_string_modified_pois_mixture
+model.select = model_string_commensurate_gamma
 #Select replicate from the data generated in sim.data.R
 vax.status=sim.ds$vax[sim.ds$rep %in% repN]
 
@@ -52,15 +52,35 @@ posterior_samples<-coda.samples(model_jags,
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
-return(posterior_samples.all[,'alpha'])
+return(posterior_samples.all)
 }
 
 
-alphas <- pblapply(1:N.sim, function(x) lapply( 1:length(sim2),  function(y) fun1(samp.size=y,  repN=x))  ) 
+parms <- pblapply(1:N.sim, function(x) lapply( 1:length(sim2),  function(y) fun1(samp.size=y,  repN=x))  ) 
 
+tau_mean <- sapply(parms, function(x) sapply(x, function(y) mean(y[,'tau'])))
 
-
+matplot(tau_mean, type='l')
+tau_mean_mean <- apply(tau_mean,1,mean)
+plot(tau_mean_mean, type='l')
 #plot(posterior_samples.all[,'logit_alpha'], type='l')
+
+delta_mean <- sapply(parms, function(x) sapply(x, function(y) mean(y[,'delta'])))
+matplot(delta_mean, type='l')
+
+
+beta1_mean <- sapply(parms, function(x) sapply(x, function(y) mean(y[,'beta1'])))
+matplot(beta1_mean, type='l')
+
+int_mean <- sapply(parms, function(x) sapply(x, function(y) mean(y[,'int'])))
+
+plot(beta1_mean, tau_mean)
+abline(v=log(1-0.4))
+
+plot(beta1_mean, delta_mean)
+plot(beta1_mean, int_mean)
+plot(delta_mean, int_mean)
+
 
 plot(posterior_samples.all[,'alpha'], type='l')
 hist(posterior_samples.all[,'alpha'])
@@ -95,6 +115,9 @@ plot(posterior_samples.all[,'beta1'], posterior_samples.all[,'alpha'], ylim=c(-3
 abline(h=0, v=0)
 
 plot(posterior_samples.all[,'delta'], posterior_samples.all[,'alpha'], ylim=c(-3,3), xlim=c(-3,3))
+abline(h=0, v=0)
+
+plot(posterior_samples.all[,'int'], posterior_samples.all[,'beta1'], ylim=c(-3,3), xlim=c(-3,3))
 abline(h=0, v=0)
 
 #hist(posterior_samples.all[,'alpha']*posterior_samples.all[,'eta'])

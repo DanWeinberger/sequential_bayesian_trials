@@ -23,11 +23,11 @@ for(i in 1:2){
 
   int_orig ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1) #uninformative prior for original trial
+  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
   
   beta1  <- delta*mix.select + eta*(1- mix.select)
   
-  eta ~ dnorm(0, 1) #Highly informativ 
+  eta ~ dnorm(0, 5) #Highly informativ 
   
   mix.select ~ dbern(alpha)
   

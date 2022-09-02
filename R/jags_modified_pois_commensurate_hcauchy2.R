@@ -1,4 +1,4 @@
-model_string_commensurate_gamma <- "
+model_string_commensurate_hcauchy <- "
 model{
 for(i in 1:2){ 
 
@@ -14,23 +14,27 @@ for(i in 1:2){
 } 
   
 #Priors for original trial
-  int_orig ~ dnorm(0, 0.1)
+  int_orig ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1) #uninformative prior for original trial
+  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
 
-# Priors from new trial
 
-  int ~ dnorm(int_orig, tau2)
-
+#Priors for new trial
+  int ~ dnorm(0, 1e-4)
+  
   beta1 ~ dnorm(delta, tau) #beta centered on alpha with highlight informative prior, which can become less informative if it does not match
 
- # tau ~ dgamma(1, 0.001) # gamma hyperprior from psborrow
-  tau ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow
-  tau2 ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow
+    
+     # sigma ~ dt(0, 25, 1) ### halfCauchy hyper-prior from psborrow
+	    #tau <- 1/(sigma^2 + 1e-6) 
+	    
+	    #dscaled.gamma equiv to half cauchy https://sourceforge.net/p/mcmc-jags/discussion/610037/thread/7527c08a/
+	      tau <- 1/sd1^2
+	      sd1 ~ dscaled.gamma(5, 2)
 
 	    a1 <- prec.log.irr.obs
 	    a2 <- log_irr.obs
-	    alpha=1
+	    alpha <- 1
 
 }
 "
