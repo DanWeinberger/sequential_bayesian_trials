@@ -14,9 +14,10 @@ for(i in 1:2){
 } 
   
 #Priors for original trial
-  int_orig ~ dnorm(0, 0.1)
+ # int_orig ~ dnorm(0, 0.1)
+  int_orig ~ dnorm(0, 1e-4)
 
-  delta ~ dnorm(0, 1) #uninformative prior for original trial
+  delta ~ dnorm(0, 1e-4) #uninformative prior for original trial
 
 # Priors from new trial
 
