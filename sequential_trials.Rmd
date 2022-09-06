@@ -70,7 +70,7 @@ Set parameters for new trial population
 ```{r}
 
 #Sample sizes for vaccinee group
-N.vax.test <- c(300,450, 600,750, 900, 1000,1500, 2000,3000)
+N.vax.test <- c(300,450,500, 550, 600,750, 900, 1000,1500)
 
 #Sample sizes for control group
 N.control.test <- round(N.vax.test/2)
@@ -147,24 +147,18 @@ mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
 
 How do the three models perform when there is NO real effect?
 
-3:Gamma, 4:Half-Cauchy 5: mixture model
+1: no pooling 2: highly informative prior (full use) 3:Gamma, (4:Half-Cauchy 5: mixture model)
 ```{r, fig.width=8, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')+
-
-  caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=1,parm.select='beta1') +
-
-  caterplot.func(all.mods, mod.version='mod5b',samp_size_selecter=1,parm.select='beta1') 
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')
 
 ```
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=9,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod4b',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod5b',samp_size_selecter=9,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=9,parm.select='beta1')
 
 ```
 
@@ -172,9 +166,7 @@ How do the three models perform when there is a real effect?
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=1,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=1,parm.select='beta1') 
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')
 
 
 ```
@@ -182,9 +174,7 @@ or for a larger dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')+
-  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=9,parm.select='beta1')+
-  caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=9,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')
 
 ```
 
@@ -192,9 +182,22 @@ or for a medium dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=5,parm.select='beta1') +
 caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=5,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='beta1')+
-  caterplot.func(all.mods, mod.version='mod4a',samp_size_selecter=5,parm.select='beta1')+
-  caterplot.func(all.mods, mod.version='mod5a',samp_size_selecter=5,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=5,parm.select='beta1')
+
+```
+
+or for a medium dataset
+```{r, fig.width=6, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=2,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=2,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=2,parm.select='beta1')
+
+```
+
+```{r, fig.width=6, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=3,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=3,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=3,parm.select='beta1')
 
 ```
 
