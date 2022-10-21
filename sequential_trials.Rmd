@@ -29,7 +29,7 @@ source('./R/extract_parm.R')
 
 source('./R/run_all_models.R')
 
-N.sim=20
+N.sim=500
 
 ```
 
