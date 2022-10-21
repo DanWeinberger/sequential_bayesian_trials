@@ -18,8 +18,8 @@ for(i in 1:2){
   int ~ dnorm(int_orig, tau2)
   beta1 ~ dnorm(delta, tau) #beta centered on delta with highly informative prior, which can become less informative if it does not match
 
-  tau ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow
-  tau2 ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow
+  tau ~ dgamma(1, 0.01) # gamma hyperprior from psborrow
+  tau2 ~ dgamma(1, 0.01) # gamma hyperprior from psborrow
 	    
 	    #these don't do anything; they are just carried through so function works
 	    a1 <- prec.log.irr.obs
