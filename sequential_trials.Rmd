@@ -29,7 +29,7 @@ source('./R/extract_parm.R')
 
 source('./R/run_all_models.R')
 
-N.sim=20
+N.sim=500
 
 ```
 
@@ -154,6 +154,67 @@ caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='b
 caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')
 
 ```
+a bit bigger...
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=2,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=2,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=2,parm.select='beta1')
+
+```
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=3,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=3,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=3,parm.select='beta1')
+
+```
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=4,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=4,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=4,parm.select='beta1')
+
+```
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')
+
+```
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=6,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=6,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=6,parm.select='beta1')
+
+```
+
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=7,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=7,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=7,parm.select='beta1')
+
+```
+
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=8,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=8,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=8,parm.select='beta1')
+
+```
+
+```{r, fig.width=8, fig.height=3}
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=9,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=9,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=9,parm.select='beta1')
+
+```
+
+
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
 caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=9,parm.select='beta1') +
@@ -217,12 +278,12 @@ all.mods[[11]]$mod3b[[1]][1,'mean'] #large pop, no effect in new trial
 ## Delta 
 Estimate using data from the original trial. In all 3 instances, delta has an uninformative prior. It doesn't seem that addition of data from new trial influences estimation of delta (which is maybe surprising for larger sample when beta and delta are the same mean. 
 ```{r, fig.width=8, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='delta') +
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='tau2') +
 
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='delta') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='delta') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='tau2') +
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau2') +
 
-    caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='delta') 
+    caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau2') 
 
 
 all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
