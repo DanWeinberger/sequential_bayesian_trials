@@ -55,14 +55,14 @@ hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
 ```
 
 
-VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
+VE from Phase 2b of Matisse This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
 #This is main novavax result
 #prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
 
 #This is Novavax LMIC data only
 #Table S16: per protocol 90 VE against RSV LRTI with hospitalization
-prior.data <- prior.data.func(ve.obs.mean=54.2, ve.obs.lcl=29.5, ve.obs.ucl=70.2, N_cases_orig =c(42,38), pop_orig= c(854, 1686))
+prior.data <- prior.data.func(ve.obs.mean=91.5, ve.obs.lcl=-5.6, ve.obs.ucl=99.8, N_cases_orig =c(3,1), pop_orig= c(103, 405))
 ```
 
 Set parameters for new trial population
@@ -70,18 +70,18 @@ Set parameters for new trial population
 ```{r}
 
 #Sample sizes for vaccinee group
-N.vax.test <- c(300,450,500, 550, 600,750, 900, 1000,1500)
+N.vax.test <- c(300,500,  700, 900, 1000,1500, 3700 )
 
-#Sample sizes for control group
-N.control.test <- round(N.vax.test/2)
+#Sample sizes for control group--1:1 randomization
+N.control.test <- round(N.vax.test)
 
-#proportion of kids in placebo group who get the outcome set to 0.024 for Noavavx
-#set.rate.control <- 0.024 
-set.rate.control <- 0.049 
+#proportion of kids in placebo group who get the outcome set to 2.9% (0.029) for Phase2b pfizer
+set.rate.control <- 0.029
 
 
 #VE in the new trial
-set.ve.new.trial=prior.data$ve.obs.mean
+#Let's test power to detect a 60% effect
+set.ve.new.trial = 60
 ```
 
 ## Scenario 1: Same VE as original trial
@@ -156,9 +156,9 @@ caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='b
 ```
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=9,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=9,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=5,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=5,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=5,parm.select='beta1')
 
 ```
 
@@ -195,16 +195,16 @@ caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=4,parm.select='b
 ```
 
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')
+caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=7,parm.select='beta1') +
+caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=7,parm.select='beta1')+
+caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=7,parm.select='beta1')
 
 ```
 
 ## Alpha 
 ```{r, fig.width=3, fig.height=3}
 caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau') 
+  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=7,parm.select='tau') 
 
 
 all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
