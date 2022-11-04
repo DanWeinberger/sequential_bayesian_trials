@@ -20,6 +20,7 @@ sim.data.func <- function(N.vax = 3045,
   sim1.combined <- cbind.data.frame('rep'=rep,'vax'=vax, 'N_cases'= N_cases, 'pop'=pop)
   
   sim1.combined <- sim1.combined %>%
-    arrange(rep)
+    arrange(rep) %>%
+    mutate(ve.new.trial=ve.new.trial)
   return(sim1.combined)
 }

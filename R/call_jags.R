@@ -1,11 +1,11 @@
-call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4, repN=1, model.select=model_string_basic_pois){
+call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4,  model.select=model_string_basic_pois){
 
   #Select replicate from the data generated in sim.data.R
-  vax.status=sim.ds$vax[sim.ds$rep==repN]
+  vax.status=sim.ds$vax
 
-  pop=sim.ds$pop[sim.ds$rep==repN]
+  pop=sim.ds$pop
   
-  N_cases=sim.ds$N_cases[sim.ds$rep==repN]
+  N_cases=sim.ds$N_cases
 
 
 ##############################################################
@@ -48,8 +48,11 @@ posterior_samples.all<-do.call(rbind,posterior_samples)
 post_means<-apply(posterior_samples.all, 2, mean)
 sample.labs<-names(post_means)
 ci<-t(hdi(posterior_samples.all, credMass = 0.95))
-#ci<-matrix(sprintf("%.1f",round(ci,1)), ncol=2)
 ci<-matrix(ci, ncol=2)
+
+ci975<-t(hdi(posterior_samples.all, credMass = 0.975))
+ci975<-matrix(ci975, ncol=2)
+
 
 row.names(ci)<-sample.labs
 #post_means<-sprintf("%.1f",round(post_means,1))
@@ -57,8 +60,9 @@ names(post_means)<-sample.labs
 
 post_var <- apply(posterior_samples.all,2, var)
 
-combined <- cbind.data.frame(post_means, ci ,post_var,prior.mean, repN,names(post_means))
-names(combined) <- c('mean','lcl','ucl', 'var', 'prior.mean', 'repN', 'parm')
+combined <- cbind.data.frame(post_means, ci ,ci975,post_var,prior.mean, names(post_means),'repN'=unique(sim.ds$rep),
+                             'pop'=unique(sim.ds$pop),'ve.new.trial'=unique(sim.ds$ve.new.trial) )
+names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var', 'prior.mean',  'parm', 'repN','pop','ve.new.trial')
 
 #post_beta <- combined[grep('beta',names(post_means)),]
 
