@@ -12,6 +12,8 @@ library(dplyr)
 library(patchwork)
 library(stringr)
 library(pbapply)
+library(parallel)
+
 library(ggplot2)
 library(extraDistr)
 source('./R/prior.data.func.R')
@@ -19,9 +21,6 @@ source('./R/call_jags.R')
 source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
-source('./R/jags_modified_pois_commensurate_hcauchy.R') #NOTE, this is experimental version
-source('./R/jags_modified_pois_commensurate_uniform.R') #NOTE, this is experimental version
-source('./R/jags_modified_pois_mixture2.R') #NOTE, this is experimental version
 
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
@@ -55,14 +54,14 @@ hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
 ```
 
 
-VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
+VE from Phase 2b of Matisse This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
 ```{r}
 #This is main novavax result
 #prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
 
 #This is Novavax LMIC data only
 #Table S16: per protocol 90 VE against RSV LRTI with hospitalization
-prior.data <- prior.data.func(ve.obs.mean=54.2, ve.obs.lcl=29.5, ve.obs.ucl=70.2, N_cases_orig =c(42,38), pop_orig= c(854, 1686))
+prior.data <- prior.data.func(ve.obs.mean=91.5, ve.obs.lcl=-5.6, ve.obs.ucl=99.8, N_cases_orig =c(3,1), pop_orig= c(103, 405))
 ```
 
 Set parameters for new trial population
@@ -70,18 +69,22 @@ Set parameters for new trial population
 ```{r}
 
 #Sample sizes for vaccinee group
-N.vax.test <- c(300,450,500, 550, 600,750, 900, 1000,1500)
+N.vax.test <- c(300,500,  700, 900, 1000,1500, 3700 )
 
-#Sample sizes for control group
-N.control.test <- round(N.vax.test/2)
+#Sample sizes for control group--1:1 randomization
+N.control.test <- round(N.vax.test)
 
-#proportion of kids in placebo group who get the outcome set to 0.024 for Noavavx
-#set.rate.control <- 0.024 
-set.rate.control <- 0.049 
+#proportion of kids in placebo group who get the outcome set to 2.9% (0.029) for Phase2b pfizer
+set.rate.control <- 0.029
 
 
 #VE in the new trial
-set.ve.new.trial=prior.data$ve.obs.mean
+set.ve.new.trial.agree = prior.data$ve.obs.mean
+
+#Let's test power to detect a 60% effect
+
+set.ve.new.trial.lower = 50
+
 ```
 
 ## Scenario 1: Same VE as original trial
@@ -93,7 +96,7 @@ sim1 <- mapply(FUN=sim.data.func,
        N.vax=N.vax.test, 
        N.control=N.control.test,  
        rate.control=set.rate.control, 
-       ve.new.trial=set.ve.new.trial,
+       ve.new.trial=set.ve.new.trial.agree,
        n.sim=N.sim, SIMPLIFY = F)
 ```
 
@@ -109,9 +112,66 @@ sim2 <- mapply(FUN=sim.data.func,
        n.sim=N.sim, SIMPLIFY = F)
 ```
 
-Call all models for both simulated datasets
+## Scenario 3: moderate actual effect
+```{r}
+set.seed(456)
+
+sim3 <- mapply(FUN=sim.data.func, 
+       N.vax=N.vax.test, 
+       N.control=N.control.test,  
+       rate.control=set.rate.control, 
+       ve.new.trial=set.ve.new.trial.lower,
+       n.sim=N.sim, SIMPLIFY = F)
+```
+
+Call all models for both simulated datasets. Use parallel processing
 ```{r, eval=F}
-all.mods <- pbmapply(FUN=run_all_models,sim1, sim2 , SIMPLIFY=F)
+
+library(multidplyr)
+ptm <- proc.time()
+numCores = detectCores() -1
+cluster1 <- new_cluster(numCores)
+cluster_library(cluster1, "dplyr")
+cluster_library(cluster1, "rjags")
+cluster_library(cluster1, "HDInterval")
+cluster_copy(cluster1, "call_jags")
+cluster_copy(cluster1, "prior.data")
+cluster_copy(cluster1, "model_string_basic_pois")
+cluster_copy(cluster1, "model_string_commensurate_gamma")
+
+#baseline model without pooling
+mod1 <- bind_rows(c(sim1, sim2, sim3)) %>%
+  group_by(rep,pop,ve.new.trial) %>%
+ # filter(rep<=20) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=0, prior.prec=1e-4)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='none')
+
+#full pooling
+mod2 <- bind_rows(c(sim1, sim2, sim3)) %>%
+  group_by(rep,pop,ve.new.trial) %>%
+ # filter(rep<=3) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Full')
+
+#Commensurate prior pooling
+mod3 <- bind_rows(c(sim1, sim2, sim3)) %>%
+  group_by(rep,pop,ve.new.trial) %>%
+ # filter(rep<=3) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs, model.select=model_string_commensurate_gamma)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate')
+
+proc.time() - ptm
+
+all.mods <- bind_rows(mod1, mod2, mod3)
 
 saveRDS(all.mods, './Results/all.mods.rds')
 ```
@@ -121,194 +181,63 @@ all.mods <- readRDS( './Results/all.mods.rds')
 
 ```
 
-extract 
-```{r}
-mod.4a <- sapply(all.mods,'[[','mod4a', simplify=F) %>%
-  lapply( function(x){ 
-  bind_rows(x)
-    })
-mod.3a <- sapply(all.mods,'[[','mod3a', simplify=F) %>%
-  lapply( function(x){ 
-  bind_rows(x)
-    })
-
-mod.2a <- sapply(all.mods,'[[','mod2a', simplify=F) %>%
-  lapply( function(x){ 
-  bind_rows(x)
-    })
-
-mod.1a <- sapply(all.mods,'[[','mod1a', simplify=F) %>%
-  lapply( function(x){ 
-  bind_rows(x)
-    })
-
-
-```
 
 How do the three models perform when there is NO real effect?
 
 1: no pooling 2: highly informative prior (full use) 3:Gamma, (4:Half-Cauchy 5: mixture model)
 ```{r, fig.width=8, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=1,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=1,parm.select='beta1')
+
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==300) %>%   caterplot.func()
+
 
 ```
 For a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1b',samp_size_selecter=9,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2b',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3b',samp_size_selecter=9,parm.select='beta1')
-
-```
-
-How do the three models perform when there is a real effect?
-```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='beta1')
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==1000) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==1000) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==1000) %>%   caterplot.func()
 
 
 ```
-or for a larger dataset
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=2,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=2,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=2,parm.select='beta1')
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==3700) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==3700) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==3700) %>%   caterplot.func()
+
 
 ```
 
-or for a medium dataset
+How do the three models perform when there is a real effect, consistent with the original?
+
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=3,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=3,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=3,parm.select='beta1')
-
-```
-
-or for a medium dataset
-```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=4,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=4,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=4,parm.select='beta1')
-
+ all.mods %>%   filter(ve.new.trial==91.5 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==91.5 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==91.5 & Pooling_type=='Commensurate' & pop==300) %>%   caterplot.func()
 ```
 
 ```{r, fig.width=6, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=9,parm.select='beta1') +
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=9,parm.select='beta1')+
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=9,parm.select='beta1')
+ all.mods %>%   filter(ve.new.trial==91.5 & Pooling_type=='none' & pop==3700) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==91.5 & Pooling_type=='Full' & pop==3700) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==91.5 & Pooling_type=='Commensurate' & pop==3700) %>%   caterplot.func()
+
 
 ```
-
-## Alpha 
-```{r, fig.width=3, fig.height=3}
-caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='tau') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='tau') 
-
-
-all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
-all.mods[[11]]$mod3a[[1]][1,'mean'] #large pop, real effect in new trial
-
-all.mods[[1]]$mod3b[[1]][1,'mean'] #small pop, no effect in new trial
-all.mods[[11]]$mod3b[[1]][1,'mean'] #large pop, no effect in new trial
-```
-
-## Delta 
-Estimate using data from the original trial. In all 3 instances, delta has an uninformative prior. It doesn't seem that addition of data from new trial influences estimation of delta (which is maybe surprising for larger sample when beta and delta are the same mean. 
-```{r, fig.width=8, fig.height=3}
-caterplot.func(all.mods, mod.version='mod1a',samp_size_selecter=1,parm.select='delta') +
-
-caterplot.func(all.mods, mod.version='mod2a',samp_size_selecter=1,parm.select='delta') +
-  caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=1,parm.select='delta') +
-
-    caterplot.func(all.mods, mod.version='mod3a',samp_size_selecter=11,parm.select='delta') 
+## What if there is a discrepant effect between prior and new trial
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='none' & pop==700) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='Full' & pop==700) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='Commensurate' & pop==700) %>%   caterplot.func()
 
 
-all.mods[[1]]$mod3a[[1]][1,'mean'] #small pop, real effect in new trial
+ all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='none' & pop==1000) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='Full' & pop==1000) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='Commensurate' & pop==1000) %>%   caterplot.func()
 
-parms1 <- extract_parm(all.mods,mod.version='mod1a', samp_size_selecter=1, parm.select='delta')
-IRR1 <- 100*(1-exp(c(mean(parms1$mean), mean(parms1$lcl), mean(parms1$ucl))))
-
-parms2 <- extract_parm(all.mods,mod.version='mod2a', samp_size_selecter=1, parm.select='delta')
-IRR2 <- 100*(1-exp(c(mean(parms2$mean), mean(parms2$lcl), mean(parms2$ucl))))
-
-parms3 <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=1, parm.select='delta')
-IRR3 <- 100*(1-exp(c(mean(parms3$mean), mean(parms3$lcl), mean(parms3$ucl))))
-
-#same but with larger sample
-parms3b <- extract_parm(all.mods,mod.version='mod3a', samp_size_selecter=11, parm.select='delta')
-IRR3b <- 100*(1-exp(c(mean(parms3b$mean), mean(parms3b$lcl), mean(parms3b$ucl))))
-
-IRR1
-IRR2
-IRR3
-IRR3b
-```
-
-## Prior vs posterior
-```{r}
-density_compare_mod1a <- lapply(mod1a, function(y) prior_post_compare(y))
-
-density_compare_mod1b <- lapply(mod1a, function(y) prior_post_compare(y))
-
-density_compare_mod2a <- lapply(mod2a, function(y) prior_post_compare(y))
-
-density_compare_mod2b <- lapply(mod2b, function(y) prior_post_compare(y))
-
-density_compare_mod3a <- lapply(mod3a, function(y) prior_post_compare(y))
-
-density_compare_mod3b <- lapply(mod3b, function(y) prior_post_compare(y))
-
-density_compare_mod2a[[1]]
-
-density_compare_mod3a[[1]]
-
-density_compare_mod2b[[1]]
-
-density_compare_mod3b[[1]]
+  all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='none' & pop==1500) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='Full' & pop==1500) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==50 & Pooling_type=='Commensurate' & pop==1500) %>%   caterplot.func()
 
 ```
-
-## Across a range of sample sizes:
-Power and type 1 error for the 3 models
-```{r}
-samp_size <- c(300,600,1000,1500,2000,3000)
-
-powerA= c(0.06,0.12,0.24,0.33,0.45, 0.60)
-powerB= c(0.87,0.83,0.87, 0.91, 0.90, 0.92)
-powerC= c(0.07,0.31,0.48,0.63, 0.68, 0.78)
-
-type1_A = c(0.02,0.01,0.02, 0.03,0.03, 0.03)
-type1_B = c(0.64, 0.49, 0.39, 0.29,0.25, 0.25)
-type1_C = c(0.04, 0.06, 0.05, 0.13,0.12, 0.12)
-
-plot(samp_size, powerC)
-
-
-  
-  
-```
-
-```{r}
-  x <- seq(-4, 4, length=100)
-alpha1=1e-6
-alpha2=0.5
-alpha3=0.25
-
-  prior.y1 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha1))
-  
-    prior.y2 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha2))
-
-   prior.y3 <- dnorm(x, mean=prior.data$log_irr.obs[1], sd=sqrt(1/prior.data$prec.log.irr.obs*alpha3))
-
-  
-  plot(x, prior.y1, type='l')
-    points(x, prior.y2, type='l', col='red')
-    points(x, prior.y3, type='l', col='blue')
-
-```
-
-
-
 
