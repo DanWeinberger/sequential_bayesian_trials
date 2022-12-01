@@ -1,0 +1,309 @@
+---
+title: "Sequential trials"
+output: html_document
+date: '2022-08-17'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rjags)
+library(HDInterval)
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE)
+
+library(patchwork)
+library(stringr)
+library(pbapply)
+library(parallel)
+
+library(ggplot2)
+library(extraDistr)
+source('./R/prior.data.func.R')
+source('./R/call_jags.R')
+source('./R/sim.data.R')
+source('./R/jags_basic_pois.R')
+source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
+
+source('./R/caterplot.func.R')
+source('./R/prior_post_compare.R')
+source('./R/extract_parm.R')
+
+source('./R/run_all_models.R')
+
+N.sim=500
+
+```
+
+
+```{r}
+hist(rgamma(1000,1,0.001))
+
+#SD
+sd <- 1/sqrt(rgamma(10000,1,0.1))
+
+mean(1/sqrt(rgamma(10000,1,0.1)))
+median(1/sqrt(rgamma(10000,1,0.1)))
+
+hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
+
+ 
+        sigma <- abs(rlst(n=10000,df=1, sigma=1/sqrt(50), mu=0) )
+  	    prec <- 1/(sigma^2)
+# # 	    
+# # 	    mean(prec)
+# library(extraDistr)
+# prec2 <- rhcauchy(10000,sigma=0.2)
+```
+
+
+VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
+```{r}
+#This is main novavax result
+#prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
+
+#Table 2: per protocol 90 day VE against RSV LRTI with hospitalization
+prior.data <- prior.data.func(ve.obs.mean=44.4, ve.obs.lcl=19.6, ve.obs.ucl=61.5, N_cases_orig =c(53,57), pop_orig= c(1430, 2765))
+```
+
+Set parameters for new trial population
+
+```{r}
+
+
+#proportion of kids in placebo group who get the outcome set to 0.037 for Noavavx secondary endpoint
+set.rate.control <- 0.037 
+
+#VE in the new trial, if it agrees with original
+set.ve.new.trial.agree = prior.data$ve.obs.mean
+
+#discrepant VE in new trial (higher)
+set.ve.new.trial.higher = 90
+
+```
+
+## Scenario 1: Same VE as original trial
+Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
+```{r}
+set.seed(123)
+
+sim1 <- sim.data.func(N.vax = 10000,
+                     N.control = 10000,
+                     rate.control = set.rate.control,
+                     ve.new.trial=set.ve.new.trial.agree,
+                     n.sim=N.sim)
+  
+```
+
+## Scenario 2: no actual effect
+```{r}
+set.seed(456)
+
+sim2 <- sim.data.func(N.vax = 10000,
+                     N.control = 10000,
+                     rate.control = set.rate.control,
+                     ve.new.trial=0,
+                     n.sim=N.sim)
+```
+
+## Scenario 3: discrepant actual effect
+```{r}
+set.seed(456)
+
+sim3 <- sim.data.func(N.vax = 10000,
+                     N.control = 10000,
+                     rate.control = set.rate.control,
+                     ve.new.trial=set.ve.new.trial.higher,
+                     n.sim=N.sim)
+```
+
+
+## At which points do we want to evaluate VE?
+
+How many vaccinees are enrolled?
+
+```{r}
+
+eval_points = seq(from=100, to=2000, by=100)
+
+```
+
+test run. 500 vaccinees+500 controls. It takes 0.27 seconds for 1 run. Need to test 20 cut points, 3 true VE levels, and 500 sims (30,000 combos). This would take 135 minutes if run sequentially. 
+
+
+generate combined dataset for modeling--need to fill 0s if stratum not represented
+```{r}
+mod.ds1 <- lapply(eval_points , function(set.pop){
+    ds1 <- bind_rows(sim1, sim2, sim3) %>%
+        group_by(repN,ve.new.trial, treatment) %>%
+      mutate(pop=set.pop) %>%
+      filter( ((ID<pop &treatment=='placebo')|(ID<pop &treatment=='vax') )) %>%
+          summarize(N_cases= n(), pop=mean(pop)) %>%
+      ungroup() 
+    
+return(ds1)
+    }) %>%
+  bind_rows() %>%
+  tidyr::complete(repN,ve.new.trial, treatment , pop,   fill=list(N_cases=0)) %>%
+    mutate( vax=if_else(treatment=='vax',1,0)) 
+
+```
+
+```{r}
+ptm <- proc.time()
+
+mod1 <- mod.ds1 %>%
+  filter( repN==2  & pop==500 &  ve.new.trial==44.4 ) %>%
+  call_jags( prior.mean=0, prior.prec=1e-4)
+
+proc.time() - ptm
+
+```
+
+
+Call all models for both simulated datasets. Use parallel processing
+```{r, eval=F}
+ptm <- proc.time()
+
+
+library(multidplyr)
+ptm <- proc.time()
+numCores = detectCores() -1
+cluster1 <- new_cluster(numCores)
+cluster_library(cluster1, "dplyr")
+cluster_library(cluster1, "rjags")
+cluster_library(cluster1, "HDInterval")
+cluster_copy(cluster1, "call_jags")
+cluster_copy(cluster1, "prior.data")
+cluster_copy(cluster1, "model_string_basic_pois")
+cluster_copy(cluster1, "model_string_commensurate_gamma")
+
+#baseline model without pooling
+mod1 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=0, prior.prec=1e-4)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='none')
+
+#full pooling
+mod2 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+ # filter(rep<=3) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Full')
+
+#Commensurate prior pooling
+mod3 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs, model.select=model_string_commensurate_gamma)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate')
+
+proc.time() - ptm
+
+all.mods <- bind_rows(mod1, mod2, mod3)
+
+saveRDS(all.mods, './Results/all.mods_novavax.rds')
+
+ptm <- proc.time()
+
+```
+
+```{r}
+all.mods <- readRDS( './Results/all.mods_novavax.rds')
+
+```
+
+
+How do the three models perform when there is NO real effect?
+
+1: no pooling 2: highly informative prior (full use) 3:Gamma, (4:Half-Cauchy 5: mixture model)
+```{r, fig.width=8, fig.height=3}
+
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==300) %>%   caterplot.func()
+
+
+```
+For a larger dataset
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==1000) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==1000) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==1000) %>%   caterplot.func()
+
+
+```
+
+
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==1500) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==1500) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==1500) %>%   caterplot.func()
+
+
+```
+
+How do the three models perform when there is a real effect, consistent with the original?
+
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Commensurate' & pop==300) %>%   caterplot.func()
+```
+
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='none' & pop==500) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Full' & pop==500) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Commensurate' & pop==500) %>%   caterplot.func()
+
+
+```
+
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='none' & pop==900) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Full' & pop==900) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Commensurate' & pop==900) %>%   caterplot.func()
+
+
+```
+
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='none' & pop==1000) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Full' & pop==1000) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Commensurate' & pop==1000) %>%   caterplot.func()
+
+
+```
+
+
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='none' & pop==1500) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Full' & pop==1500) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Commensurate' & pop==1500) %>%   caterplot.func()
+
+
+```
+
+## What if there is a discrepant effect between prior and new trial
+```{r, fig.width=6, fig.height=3}
+ all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Commensurate' & pop==300) %>%   caterplot.func()
+
+
+ all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='none' & pop==1000) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Full' & pop==1000) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Commensurate' & pop==1000) %>%   caterplot.func()
+
+  all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='none' & pop==1500) %>%   caterplot.func() +
+ all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Full' & pop==1500) %>%   caterplot.func() +
+   all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Commensurate' & pop==1500) %>%   caterplot.func()
+
+```
