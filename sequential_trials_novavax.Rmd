@@ -5,7 +5,7 @@ date: '2022-08-17'
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 library(rjags)
 library(HDInterval)
 library(dplyr, warn.conflicts = FALSE)
@@ -32,27 +32,6 @@ source('./R/run_all_models.R')
 
 N.sim=500
 
-```
-
-
-```{r}
-hist(rgamma(1000,1,0.001))
-
-#SD
-sd <- 1/sqrt(rgamma(10000,1,0.1))
-
-mean(1/sqrt(rgamma(10000,1,0.1)))
-median(1/sqrt(rgamma(10000,1,0.1)))
-
-hist(1/sqrt(rgamma(10000,0.01,0.01)), main='SD')
-
- 
-        sigma <- abs(rlst(n=10000,df=1, sigma=1/sqrt(50), mu=0) )
-  	    prec <- 1/(sigma^2)
-# # 	    
-# # 	    mean(prec)
-# library(extraDistr)
-# prec2 <- rhcauchy(10000,sigma=0.2)
 ```
 
 
@@ -220,6 +199,130 @@ all.mods <- readRDS( './Results/all.mods_novavax.rds')
 
 ```
 
+## Bayesian estimates of performance
+
+```{r}
+
+#the p_xx are replicated for each 
+probs <- all.mods %>% 
+  group_by(repN, pop, ve.new.trial,Pooling_type) %>%
+  summarize(p_any_benefit0=mean(p_any_benefit0), 
+            p_nontrivial_0_95=mean(p_nontrivial_0_95), 
+          p_moderate_0_75= mean(p_moderate_0_75), p_harm_o1=mean(p_harm_o1),
+           p_similar_0_8__1_25=mean(p_similar_0_8__1_25)) %>%
+  ungroup()
+```
+
+### Trajectories for 500 trials
+
+This shows how the probabilities evolve as more data accrue. This shows probability of any benefit: P(VE>0|data)
+
+```{r}
+probs %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=p_any_benefit0, group=repN, color=Pooling_type)) +
+  geom_line( alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~Pooling_type)
+```
+
+This shows how the probabilities evolve as more data accrue. This shows probability of any benefit: P(VE>25|data)
+
+
+```{r}
+probs %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=p_moderate_0_75, group=repN, color=Pooling_type)) +
+  geom_line( alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~Pooling_type)
+```
+
+### Summaries of the trajectories 
+
+What is the probability of detecting any effect if there is (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? The shaded region shows where 90% of the estimates lie
+
+```{r}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type) %>%
+  summarize(p_any_benefit0_mean=mean(p_any_benefit0), p_any_benefit0_lcl=quantile(p_any_benefit0, probs=0.05),
+             p_any_benefit0_ucl=quantile(p_any_benefit0, probs=0.95)) %>%
+ggplot( aes(x=pop, y=p_any_benefit0_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+  geom_line() +
+  geom_ribbon( aes(x=pop, ymin=p_any_benefit0_lcl, 
+                   ymax=p_any_benefit0_ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  ggtitle('Prob any effect')
+```
+
+
+What is the probability of detecting NO effect (or effect between 20% decline or 25% increase) when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
+
+```{r}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type) %>%
+  summarize(p_mean=mean(p_similar_0_8__1_25), p_lcl=quantile(p_similar_0_8__1_25, probs=0.05),
+             p_ucl=quantile(p_similar_0_8__1_25, probs=0.95)) %>%
+ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+  geom_line() +
+  geom_ribbon( aes(x=pop, ymin=p_lcl, 
+                   ymax=p_ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  ggtitle('Prob no effect')
+```
+
+
+What is the probability of detecting a moderate effect or greater (at least 25% decline) effect when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
+
+```{r}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type) %>%
+  summarize(p_mean=mean(p_moderate_0_75), p_lcl=quantile(p_moderate_0_75, probs=0.05),
+             p_ucl=quantile(p_moderate_0_75, probs=0.95)) %>%
+ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+  geom_line() +
+  geom_ribbon( aes(x=pop, ymin=p_lcl, 
+                   ymax=p_ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  ggtitle('Prob Moderate effect')
+```
+
+What is the probability of detecting a harmful effect or greater (an increase in disease rates) when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
+
+```{r}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type) %>%
+  summarize(p_mean=mean(p_harm_o1), p_lcl=quantile(p_harm_o1, probs=0.05),
+             p_ucl=quantile(p_harm_o1, probs=0.95)) %>%
+ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+  geom_line() +
+  geom_ribbon( aes(x=pop, ymin=p_lcl, 
+                   ymax=p_ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  ggtitle('Prob Harmful effect')
+```
+
+
+
+## Traditional frequentist measures of power, type 1 error
 
 How do the three models perform when there is NO real effect?
 
@@ -229,6 +332,8 @@ How do the three models perform when there is NO real effect?
  all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
  all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
    all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Commensurate' & pop==300) %>%   caterplot.func()
+
+ggplot()
 
 
 ```
