@@ -127,6 +127,19 @@ return(ds1)
 
 ```
 
+Accrual of cases in the 500 trials
+```{r}
+mod.ds1 %>%
+  filter(ve.new.trial==44.4) %>%
+  ggplot(aes(x=pop, y=N_cases, group=interaction(repN, treatment), color=treatment))+
+  geom_line(alpha=0.1) +
+  theme_classic()
+```
+
+
+
+
+
 ```{r}
 ptm <- proc.time()
 
@@ -203,13 +216,10 @@ all.mods <- readRDS( './Results/all.mods_novavax.rds')
 
 ```{r}
 
-#the p_xx are replicated for each 
+#the p_xx are replicated for each parameter so filter to just 1 parameter
 probs <- all.mods %>% 
   group_by(repN, pop, ve.new.trial,Pooling_type) %>%
-  summarize(p_any_benefit0=mean(p_any_benefit0), 
-            p_nontrivial_0_95=mean(p_nontrivial_0_95), 
-          p_moderate_0_75= mean(p_moderate_0_75), p_harm_o1=mean(p_harm_o1),
-           p_similar_0_8__1_25=mean(p_similar_0_8__1_25)) %>%
+  filter(parm=='beta1')  %>%
   ungroup()
 ```
 
@@ -320,6 +330,17 @@ ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooli
   ggtitle('Prob Harmful effect')
 ```
 
+Evolution of mean  estimates for log(VE)..suggests maybe things aren't convverging at low end
+```{r}
+probs %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=mean, group=repN, color=Pooling_type)) +
+  geom_line( alpha=0.1) +
+  theme_classic() +
+  facet_wrap(~Pooling_type)+
+  ylim(-5,5)
+```
 
 
 ## Traditional frequentist measures of power, type 1 error
