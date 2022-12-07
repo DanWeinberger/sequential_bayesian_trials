@@ -1,6 +1,7 @@
-call_jags <- function(sim.ds, prior.mean=0, prior.prec=1e-4,  model.select=model_string_basic_pois){
+call_jags <- function(sim.ds, prior.mean=999, set_tau_shp=999, set_tau_rate=999, prior.prec=999, prior.sd.upper=999, model.select=model_string_basic_pois){
 
-
+##See 3.3 for section on selecting priors: https://hbiostat.org/proj/covid19/bayesplan.html
+  
   #Select replicate from the data generated in sim.data.R
   vax.status=sim.ds$vax
 
@@ -26,12 +27,15 @@ model_jags<-jags.model(model_spec,
                        data=list('N_cases'=N_cases,
                                  'vax'=vax.status, #could use whole dataset but would take a long time
                                  'pop'=pop,
-                                 'log_irr.obs'=prior.mean,
-                                 'prec.log.irr.obs'=prior.prec,
+                                 'prior_mean_log_irr'=prior.mean,
+                                 'prior_prec_log_irr'=prior.prec,
                                  'N_cases_orig'=prior.data$N_cases_orig,
-                                 'pop_orig'= prior.data$pop_orig
+                                 'pop_orig'= prior.data$pop_orig,
+                                 'set_tau_shp'= set_tau_shp,
+                                  'set_tau_rate'=set_tau_rate,
+                                 'sd.upper'=prior.sd.upper
                        ),
-                       n.adapt=5000, 
+                       n.adapt=10000, 
                        n.chains=1, quiet=T)
 
 
@@ -42,7 +46,7 @@ params<-c('int', 'beta1', 'delta', 'tau', 'alpha')
 ##############################################
 posterior_samples<-coda.samples(model_jags, 
                                 params, 
-                                n.iter=20000,quiet=T,progress.bar='none')
+                                n.iter=1000,quiet=T,progress.bar='none')
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
@@ -68,7 +72,8 @@ names(post_means)<-sample.labs
 
 post_var <- apply(posterior_samples.all,2, var)
 
-combined <- cbind.data.frame(post_means, ci ,ci975,post_var,prior.mean, names(post_means),'repN'=unique(sim.ds$repN),
+combined <- cbind.data.frame(post_means, ci ,ci975,post_var, names(post_means),
+                             'repN'=unique(sim.ds$repN),
                              'pop'=unique(sim.ds$pop),
                              've.new.trial'=unique(sim.ds$ve.new.trial),
                            'p_any_benefit0'=p_any_benefit0,
@@ -78,7 +83,7 @@ combined <- cbind.data.frame(post_means, ci ,ci975,post_var,prior.mean, names(po
                            'p_similar_0_8__1_25'=p_similar_0_8__1_25
                            
 )
-names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var', 'prior.mean',  'parm', 'repN','pop','ve.new.trial',
+names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var',   'parm', 'repN','pop','ve.new.trial',
                      'p_any_benefit0','p_nontrivial_0_95','p_moderate_0_75','p_harm_o1','p_similar_0_8__1_25'
                      )
 

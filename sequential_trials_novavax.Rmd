@@ -23,6 +23,7 @@ source('./R/call_jags.R')
 source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_uniform.R') #NOTE, this is experimental version
 
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
@@ -31,6 +32,81 @@ source('./R/extract_parm.R')
 source('./R/run_all_models.R')
 
 N.sim=500
+
+```
+
+
+Prior for VE proposed https://hbiostat.org/proj/covid19/bayesplan.html#operating-characteristics (low probability of extreme effects, symmetric around 0)
+A skeptical prior as defined by Frank harrell has low probability of extremes (e.g., 5% prior probability that the effect is >95% or 5% that it is the inverse )
+```{r}
+
+# p(RR<0.05) = P(RR>1/0.05) 
+
+#IRR=0.05 = 95%VE 
+#log(0.05) log(IRR)
+
+#IRR=1.95   #-95%VE
+
+
+
+
+hist(rnorm(10000, mean=0, sd=1.821))
+
+mean(rnorm(10000, mean=0, sd=1.821) <log(0.05) ) #~5% of people have a VE of >95%
+mean(rnorm(10000, mean=0, sd=1.821) >log(1/0.05) ) # ~5% of people have a VE of >-95%
+
+
+prior.sd.logrr <- (abs(log(1-44.4/100)  -  log(1-19.6/100)))/1.96
+prior.mean.logrr <- log(1-44.4/100)
+
+hist(rnorm(10000, mean=prior.mean.logrr, sd=prior.sd.logrr))  #informative prior
+
+```
+
+For commensurate prior, need to set hyperior for variance as well. If we were to use the historical data fuklly, we would want the hyperprior for posterior variance for commensurate to approach 0. If it doesn't use it at all, we would want variance to be sufficiently large to cover negative and neutral effects
+```{r}
+ hist(rgamma(1000,0.01, 0.01)) # gamma hyperprior from psborrow
+ mean(rgamma(1000,0.01, 0.01)) # gamma hyperprior from psborrow
+
+  hist(rgamma(1000,0.1, 0.1)) # gamma hyperprior from psborrow
+ mean(rgamma(1000,0.1, 0.1)) # gamma hyperprior from psborrow
+
+ 
+   hist(rgamma(1000,1, 1)) # gamma hyperprior from psborrow
+   
+ mean(rgamma(1000,1, 1)) # gamma hyperprior from psborrow
+
+    hist(rgamma(1000,10, 10)) # gamma hyperprior from psborrow
+ mean(rgamma(1000,10, 10)) # gamma hyperprior from psborrow
+
+
+
+ mean(rgamma(1000,10, 10)) # gamma hyperprior from psborrow
+ var(rgamma(1000,10, 10)) # gamma hyperprior from psborrow
+
+hist(rnorm(10000,0, rgamma(1000,1.821, 1)) )
+
+
+
+hist(rnorm(10000,-1.2, rgamma(10000,1, 3)) )
+ 
+
+
+#If there is no information in the new trial, then we would want it to revert to something like the skeptical prior from the original trial N(0,sd=1.821) in terms of coverage of extremes P(VE>95%)
+
+#if prior mean= -0.5, want to have a variance that is large enough to cover null with decent probability, maybe something like a SD=2
+
+hist(rnorm(10000, -1.2 ,2))
+mean(rnorm(10000, -1.2, 2.0)< log(0.05) )
+mean(rnorm(10000, -1.2, 2.0)> log(1/0.05) )
+
+#how does this combine with a prior mean?
+hist(rnorm(10000,-1.2, rgamma(10000,1, 1)) )
+
+
+hist(rnorm(10000,-1.2, rgamma(10000,5, 2)) )
+
+hist(rnorm(10000, mean=prior.mean.logrr, sd=1.8)) #infrmative mean
 
 ```
 
@@ -138,21 +214,46 @@ mod.ds1 %>%
 
 
 
+Prior selection based on: https://hbiostat.org/proj/covid19/bayesplan.html
 
 
 ```{r}
 ptm <- proc.time()
 
 mod1 <- mod.ds1 %>%
-  filter( repN==2  & pop==500 &  ve.new.trial==44.4 ) %>%
-  call_jags( prior.mean=0, prior.prec=1e-4)
+  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  call_jags( prior.mean=0, prior.prec=1/1.821^2) %>%
+  filter(parm=='beta1')
 
 proc.time() - ptm
 
+
+mod2 <- mod.ds1 %>%
+  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  call_jags( prior.mean=0, prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma) %>%
+  filter(parm=='beta1')
+
+mod3 <- mod.ds1 %>%
+  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  call_jags( prior.sd.upper=100, model.select=model_string_commensurate_uniform) %>%
+  filter(parm=='beta1')
+
+bind_rows(mod1, mod2, mod3)
+```
+
+Check dataset--shows all strata have 2 obs
+```{r}
+
+mod.ds1 %>%
+  group_by(repN, ve.new.trial, pop) %>%
+  summarize(n_obs=n()) %>%
+  ungroup() %>%
+  summarize(n_obs_range =range(n_obs))
 ```
 
 
-Call all models for both simulated datasets. Use parallel processing
+
+Call all models for both simulated datasets. Use parallel processing; takes ~60 min to run on 7 cores
 ```{r, eval=F}
 ptm <- proc.time()
 
@@ -168,38 +269,81 @@ cluster_copy(cluster1, "call_jags")
 cluster_copy(cluster1, "prior.data")
 cluster_copy(cluster1, "model_string_basic_pois")
 cluster_copy(cluster1, "model_string_commensurate_gamma")
+cluster_copy(cluster1, "model_string_commensurate_uniform")
+
+
+#baseline model without pooling, uninformative prior
+
+mod0 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=0,  prior.prec=1e-4 )) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='none', prior.info= 'N(0,1e-4)' ) 
 
 #baseline model without pooling
 mod1 <- mod.ds1 %>%
   group_by(repN,pop,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
- do(call_jags(., prior.mean=0, prior.prec=1e-4)) %>%
+ do(call_jags(. , model.select=model_string_basic_pois, prior.mean=0,  prior.prec=1/1.821^2 ) ) %>%
   collect() %>%
   ungroup() %>%
-  mutate(Pooling_type='none')
+  mutate(Pooling_type='none', prior.info= 'N(0,1.821^2)')
 
-#full pooling
-mod2 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
- # filter(rep<=3) %>%
-  multidplyr::partition(cluster=cluster1)  %>%
- do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs)) %>%
-  collect() %>%
-  ungroup() %>%
-  mutate(Pooling_type='Full')
+proc.time() - ptm
 
+ptm <- proc.time()
 #Commensurate prior pooling
 mod3 <- mod.ds1 %>%
   group_by(repN,pop,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
- do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=prior.data$prec.log.irr.obs, model.select=model_string_commensurate_gamma)) %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma, set_tau_shp=3, set_tau_rate=2)) %>%
   collect() %>%
   ungroup() %>%
-  mutate(Pooling_type='Commensurate')
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); IG(3,2)')
 
 proc.time() - ptm
 
-all.mods <- bind_rows(mod1, mod2, mod3)
+#Commensurate prior pooling
+mod4 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma, set_tau_shp=1, set_tau_rate=1)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); IG(1,1)')
+
+#Commensurate prior pooling
+mod4 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma, set_tau_shp=0.01, set_tau_rate=0.01)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); IG(0.01,0.01)')
+
+mod5 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_uniform, prior.sd.upper=2)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); U(0,2)')
+
+mod6 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_uniform, prior.sd.upper=100)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); U(0,100)')
+
+
+
+proc.time() - ptm
+
+all.mods <- bind_rows(mod0,mod1, mod3, mod4, mod5, mod6)
 
 saveRDS(all.mods, './Results/all.mods_novavax.rds')
 
@@ -208,7 +352,16 @@ ptm <- proc.time()
 ```
 
 ```{r}
-all.mods <- readRDS( './Results/all.mods_novavax.rds')
+all.mods <- readRDS( './Results/all.mods_novavax.rds') %>%
+  rename(parm_mean=mean) %>%
+  mutate(  parm_mean = if_else( parm_mean< (-4), (-4), 
+                  if_else(parm_mean> 4,4, parm_mean)),
+          lcl = if_else(lcl< (-4), (-4), 
+                  if_else(lcl>4,4, lcl)),
+           ucl = if_else(ucl< (-4), (-4), 
+                  if_else(ucl>4,4, ucl))
+         
+  )
 
 ```
 
@@ -218,7 +371,7 @@ all.mods <- readRDS( './Results/all.mods_novavax.rds')
 
 #the p_xx are replicated for each parameter so filter to just 1 parameter
 probs <- all.mods %>% 
-  group_by(repN, pop, ve.new.trial,Pooling_type) %>%
+  group_by(repN, pop, ve.new.trial,Pooling_type,prior.info) %>%
   filter(parm=='beta1')  %>%
   ungroup()
 ```
@@ -231,7 +384,8 @@ This shows how the probabilities evolve as more data accrue. This shows probabil
 probs %>%
   filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type)) %>%
-ggplot( aes(x=pop, y=p_any_benefit0, group=repN, color=Pooling_type)) +
+  
+ggplot( aes(x=pop, y=p_any_benefit0, group=interaction(repN,prior.info), color=Pooling_type)) +
   geom_line( alpha=0.1) +
   theme_classic() +
   facet_wrap(~Pooling_type)
@@ -244,7 +398,7 @@ This shows how the probabilities evolve as more data accrue. This shows probabil
 probs %>%
   filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type)) %>%
-ggplot( aes(x=pop, y=p_moderate_0_75, group=repN, color=Pooling_type)) +
+ggplot( aes(x=pop, y=p_moderate_0_75, group=interaction(repN,prior.info), color=Pooling_type)) +
   geom_line( alpha=0.1) +
   theme_classic() +
   facet_wrap(~Pooling_type)
@@ -258,16 +412,16 @@ What is the probability of detecting any effect if there is (A) No effect (B) a 
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
-  group_by(pop, ve.new.trial,Pooling_type) %>%
+  group_by(pop, ve.new.trial,Pooling_type, prior.info) %>%
   summarize(p_any_benefit0_mean=mean(p_any_benefit0), p_any_benefit0_lcl=quantile(p_any_benefit0, probs=0.05),
              p_any_benefit0_ucl=quantile(p_any_benefit0, probs=0.95)) %>%
-ggplot( aes(x=pop, y=p_any_benefit0_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+ggplot( aes(x=pop, y=p_any_benefit0_mean,  color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info), fill=Pooling_type)) +
   geom_line() +
   geom_ribbon( aes(x=pop, ymin=p_any_benefit0_lcl, 
                    ymax=p_any_benefit0_ucl,
-                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+                   color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
-  facet_wrap(~ve.new.trial)+
+  facet_wrap(Pooling_type~ve.new.trial)+
   ggtitle('Prob any effect')
 ```
 
@@ -278,14 +432,14 @@ What is the probability of detecting NO effect (or effect between 20% decline or
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
-  group_by(pop, ve.new.trial,Pooling_type) %>%
+  group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
   summarize(p_mean=mean(p_similar_0_8__1_25), p_lcl=quantile(p_similar_0_8__1_25, probs=0.05),
              p_ucl=quantile(p_similar_0_8__1_25, probs=0.95)) %>%
-ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type, prior.info), fill=Pooling_type)) +
   geom_line() +
   geom_ribbon( aes(x=pop, ymin=p_lcl, 
                    ymax=p_ucl,
-                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+                   color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
   facet_wrap(~ve.new.trial)+
   ggtitle('Prob no effect')
@@ -298,14 +452,14 @@ What is the probability of detecting a moderate effect or greater (at least 25% 
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
-  group_by(pop, ve.new.trial,Pooling_type) %>%
+  group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
   summarize(p_mean=mean(p_moderate_0_75), p_lcl=quantile(p_moderate_0_75, probs=0.05),
              p_ucl=quantile(p_moderate_0_75, probs=0.95)) %>%
-ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type,prior.info), fill=Pooling_type)) +
   geom_line() +
   geom_ribbon( aes(x=pop, ymin=p_lcl, 
                    ymax=p_ucl,
-                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+                   color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
   facet_wrap(~ve.new.trial)+
   ggtitle('Prob Moderate effect')
@@ -317,33 +471,202 @@ What is the probability of detecting a harmful effect or greater (an increase in
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
-  group_by(pop, ve.new.trial,Pooling_type) %>%
+  group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
   summarize(p_mean=mean(p_harm_o1), p_lcl=quantile(p_harm_o1, probs=0.05),
              p_ucl=quantile(p_harm_o1, probs=0.95)) %>%
-ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=Pooling_type, fill=Pooling_type)) +
+ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type,prior.info), fill=Pooling_type)) +
   geom_line() +
   geom_ribbon( aes(x=pop, ymin=p_lcl, 
                    ymax=p_ucl,
-                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+                   color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
   facet_wrap(~ve.new.trial)+
   ggtitle('Prob Harmful effect')
 ```
 
-Evolution of mean  estimates for log(VE)..suggests maybe things aren't convverging at low end
+Evolution of mean  estimates for log(VE)..
 ```{r}
 probs %>%
   filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type)) %>%
-ggplot( aes(x=pop, y=mean, group=repN, color=Pooling_type)) +
+ggplot( aes(x=pop, y=parm_mean, group=repN, color=Pooling_type)) +
   geom_line( alpha=0.1) +
   theme_classic() +
-  facet_wrap(~Pooling_type)+
-  ylim(-5,5)
+  ylim(-4,4)+
+  facet_wrap(prior.info~Pooling_type)
+```
+
+Evolution of beta1 estimates for a single trial.  note the 0.01,0.01 is truncated at smallest trial due to massive uncertainty
+```{r}
+probs %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==3) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=Pooling_type)) +
+  geom_line( alpha=1) +
+  theme_classic() +
+   geom_ribbon( aes(x=pop, ymin=lcl, 
+                   ymax=ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  facet_wrap(prior.info~Pooling_type) +
+  ylim(-4,4) +
+  geom_hline(yintercept=0, lty=2)
+
+probs %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==2) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=interaction(repN,Pooling_type,prior.info))) +
+  geom_line( alpha=0.5) +
+  theme_classic() +
+    #ylim(-4,4) +
+
+  # geom_ribbon( aes(x=pop, ymin=lcl, 
+          #         ymax=ucl,
+          #         color=Pooling_type, group=interaction(repN,Pooling_type,prior.info)), alpha=0.1) +
+  geom_hline(yintercept=0, lty=2)
+```
+or if there is no real effect
+```{r}
+probs %>%
+  filter(ve.new.trial==0 & Pooling_type != 'Full' & repN==3) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=Pooling_type)) +
+  geom_line( alpha=1) +
+  theme_classic() +
+   geom_ribbon( aes(x=pop, ymin=lcl, 
+                   ymax=ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  facet_wrap(prior.info~Pooling_type) +
+  ylim(-4,4) +
+  geom_hline(yintercept=0, lty=2)
+
+probs %>%
+  filter(ve.new.trial==0 & Pooling_type != 'Full' & repN==2) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=interaction(repN,Pooling_type,prior.info))) +
+  geom_line( alpha=0.5) +
+  theme_classic() +
+    ylim(-4,4) +
+
+    geom_hline(yintercept=0, lty=2)
+```
+
+```{r}
+probs %>%
+  filter(ve.new.trial==0 & Pooling_type != 'Full' & repN==1) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=Pooling_type)) +
+  geom_line( alpha=0.5) +
+  theme_classic() +
+   geom_ribbon( aes(x=pop, ymin=lcl, 
+                   ymax=ucl,
+                   color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
+  geom_hline(yintercept=0, lty=2)
+```
+
+## What proportion of the trials have a probability of any effect? (kind of like power)
+
+```{r, fig.width=}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
+  summarize( proportion_any_benefit= mean(p_any_benefit0>0.975 )) %>%
+ggplot( aes(x=pop, y=proportion_any_benefit,  color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info))) +
+  geom_line() +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  geom_hline(yintercept=0.8, lty=2, col='gray') +
+    geom_hline(yintercept=0.05, lty=2, col='gray') +
+
+  ggtitle('Proportion of trials showing probability of benefit >97.5%')
+```
+
+same for small or no effect (excludes P(harm))
+
+```{r, fig.width=}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
+  summarize( p_no_benefit= mean(p_similar_0_8__1_25>0.5)) %>%
+ggplot( aes(x=pop, y=p_no_benefit,  color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info))) +
+  geom_line() +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  geom_hline(yintercept=0.8, lty=2, col='gray') +
+  ggtitle('Proportion of trials showing >50% probability of no or small benefit')
+```
+
+```{r}
+probs %>%
+  filter(Pooling_type != 'Full' & pop==1000) %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  ggplot(aes(x=p_similar_0_8__1_25, y=p_any_benefit0)) +
+  geom_point() +
+  theme_classic()
 ```
 
 
+
+
+
+
 ## Traditional frequentist measures of power, type 1 error
+
+Is the UCL <0?
+```{r}
+
+powers <- all.mods %>%
+  filter(parm=='beta1' & Pooling_type!='Full') %>%
+  group_by(ve.new.trial,Pooling_type,pop,prior.info) %>%
+  summarize( power=mean(ucl <0)*100 )
+
+ggplot(powers, aes(x=pop, y=power, group=interaction(Pooling_type,prior.info), color=interaction(Pooling_type,prior.info))) +
+  geom_line()+
+  theme_classic()+
+    facet_wrap(~ve.new.trial)+
+  geom_hline(yintercept=c(5,80), lty=2, col='gray') +
+  xlab("N vaccine group")+
+  ggtitle('Frequentist power')
+  
+  
+```
+
+```{r}
+
+prop_pop_90 <- all.mods %>%
+  filter(parm=='beta1' & Pooling_type!='Full') %>%
+  group_by(ve.new.trial,Pooling_type,pop) %>%
+  summarize( prop_any_effect=mean(p_any_benefit0 >=0.9)*100 )
+
+ggplot(prop_pop_90, aes(x=pop, y=prop_any_effect, group=Pooling_type, color=Pooling_type)) +
+  geom_line()+
+  theme_classic()+
+    facet_wrap(~ve.new.trial)+
+  #geom_hline(yintercept=c(5,80), lty=2, col='gray') +
+  xlab("N vaccine group")+
+  ggtitle('Proportion of trials with 90% posterior probability of any effect')
+  
+  
+```
+
+```{r}
+
+prop_pop_90 <- all.mods %>%
+  filter(parm=='beta1' & Pooling_type!='Full') %>%
+  group_by(ve.new.trial,Pooling_type,pop) %>%
+  summarize( prop_no_effect=mean(p_similar_0_8__1_25 >=0.75)*100 )
+
+ggplot(prop_pop_90, aes(x=pop, y=prop_no_effect, group=Pooling_type, color=Pooling_type)) +
+  geom_line()+
+  theme_classic()+
+    facet_wrap(~ve.new.trial)+
+  #geom_hline(yintercept=c(5,80), lty=2, col='gray') +
+  xlab("N vaccine group")+
+  ggtitle('Proportion of trials with 75% posterior probability of NO effect')
+  
+  
+```
 
 How do the three models perform when there is NO real effect?
 

@@ -1,4 +1,4 @@
-model_string_commensurate_gamma <- "
+model_string_commensurate_uniform <- "
 model{
 for(i in 1:2){ 
   N_cases_orig[i] ~ dpois(mu[i]) #Likelihood for data from original trial
@@ -18,13 +18,20 @@ for(i in 1:2){
   int ~ dnorm(int_orig, tau2)
   beta1 ~ dnorm(delta, tau) #beta centered on delta with highly informative prior, which can become less informative if it does not match
 
-  tau ~ dgamma(set_tau_shp, set_tau_rate) # skeptical variance--prevents extremes--might bias towards prior value?
-  tau2 ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow; uninformative
-	    
+  tau.sd ~ dunif(0, sd.upper)
+  
+  tau2.sd ~ dunif(0, 100) #yields very flat prior on intercept
+
+  tau <- 1/tau.sd^2
+  
+  tau2 <- 1/tau2.sd^2
+
+
 	    #these don't do anything; they are just carried through so function works
 	    a1 <- prior_prec_log_irr
 	    a2 <- prior_mean_log_irr
-	    a3 <- sd.upper
+	    a3 <- set_tau_rate
+	    a4 <- set_tau_shp
 
 	    alpha=1
 }
