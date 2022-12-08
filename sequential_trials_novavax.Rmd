@@ -24,6 +24,7 @@ source('./R/sim.data.R')
 source('./R/jags_basic_pois.R')
 source('./R/jags_modified_pois_commensurate_gamma.R') #NOTE, this is experimental version
 source('./R/jags_modified_pois_commensurate_uniform.R') #NOTE, this is experimental version
+source('./R/jags_modified_pois_commensurate_half_cauchy.R') #NOTE, this is experimental version
 
 source('./R/caterplot.func.R')
 source('./R/prior_post_compare.R')
@@ -238,7 +239,15 @@ mod3 <- mod.ds1 %>%
   call_jags( prior.sd.upper=100, model.select=model_string_commensurate_uniform) %>%
   filter(parm=='beta1')
 
-bind_rows(mod1, mod2, mod3)
+
+mod4 <- mod.ds1 %>%
+  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  call_jags( prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_half_cauchy) %>%
+  filter(parm=='beta1')
+
+
+
+bind_rows(mod1, mod2, mod3, mod4)
 ```
 
 Check dataset--shows all strata have 2 obs
@@ -250,6 +259,8 @@ mod.ds1 %>%
   ungroup() %>%
   summarize(n_obs_range =range(n_obs))
 ```
+
+
 
 
 
@@ -270,6 +281,7 @@ cluster_copy(cluster1, "prior.data")
 cluster_copy(cluster1, "model_string_basic_pois")
 cluster_copy(cluster1, "model_string_commensurate_gamma")
 cluster_copy(cluster1, "model_string_commensurate_uniform")
+cluster_copy(cluster1, "model_string_commensurate_half_cauchy")
 
 
 #baseline model without pooling, uninformative prior
@@ -339,11 +351,18 @@ mod6 <- mod.ds1 %>%
   ungroup() %>%
   mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); U(0,100)')
 
+mod7 <- mod.ds1 %>%
+  group_by(repN,pop,ve.new.trial) %>%
+  multidplyr::partition(cluster=cluster1)  %>%
+ do(call_jags(. , prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_half_cauchy)) %>%
+  collect() %>%
+  ungroup() %>%
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau);t(0,1,1)T(0,)')
 
 
 proc.time() - ptm
 
-all.mods <- bind_rows(mod0,mod1, mod3, mod4, mod5, mod6)
+all.mods <- bind_rows(mod0,mod1, mod3, mod4, mod5, mod6, mod7)
 
 saveRDS(all.mods, './Results/all.mods_novavax.rds')
 
