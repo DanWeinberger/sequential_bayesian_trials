@@ -1,7 +1,7 @@
 ---
 title: "Sequential trials"
 output: html_document
-date: '2022-08-17'
+date: '2022-12-08'
 ---
 
 ```{r setup, include=FALSE}
@@ -36,6 +36,8 @@ N.sim=500
 
 ```
 
+
+test
 
 Prior for VE proposed https://hbiostat.org/proj/covid19/bayesplan.html#operating-characteristics (low probability of extreme effects, symmetric around 0)
 A skeptical prior as defined by Frank harrell has low probability of extremes (e.g., 5% prior probability that the effect is >95% or 5% that it is the inverse )
@@ -401,33 +403,21 @@ This shows how the probabilities evolve as more data accrue. This shows probabil
 
 ```{r}
 probs %>%
-  filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
-  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN %in% c(1:10)) %>%
+  mutate(prior.info = as.factor(prior.info)) %>%
   
 ggplot( aes(x=pop, y=p_any_benefit0, group=interaction(repN,prior.info), color=Pooling_type)) +
   geom_line( alpha=0.1) +
   theme_classic() +
-  facet_wrap(~Pooling_type)
+  facet_wrap(~prior.info)
 ```
 
-This shows how the probabilities evolve as more data accrue. This shows probability of any benefit: P(VE>25|data)
-
-
-```{r}
-probs %>%
-  filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
-  mutate(Pooling_type = as.factor(Pooling_type)) %>%
-ggplot( aes(x=pop, y=p_moderate_0_75, group=interaction(repN,prior.info), color=Pooling_type)) +
-  geom_line( alpha=0.1) +
-  theme_classic() +
-  facet_wrap(~Pooling_type)
-```
 
 ### Summaries of the trajectories 
 
 What is the probability of detecting any effect if there is (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? The shaded region shows where 90% of the estimates lie
-
-```{r}
+ 
+```{r, fig.width=7, fig.height=7} 
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
@@ -440,14 +430,14 @@ ggplot( aes(x=pop, y=p_any_benefit0_mean,  color=interaction(Pooling_type,prior.
                    ymax=p_any_benefit0_ucl,
                    color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
-  facet_wrap(Pooling_type~ve.new.trial)+
-  ggtitle('Prob any effect')
+  facet_grid(prior.info~ve.new.trial)+
+  ggtitle('Prob any effect (mean and central 90% from 500 simulated trials)')
 ```
 
 
-What is the probability of detecting NO effect (or effect between 20% decline or 25% increase) when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
+What is the probability of detecting small or no effect (or effect between 20% decline or 25% increase) when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
 
-```{r}
+```{r, fig.width=7, fig.height=7} 
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
@@ -460,7 +450,7 @@ ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type
                    ymax=p_ucl,
                    color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
-  facet_wrap(~ve.new.trial)+
+  facet_grid(prior.info~ve.new.trial)+
   ggtitle('Prob no effect')
 ```
 
