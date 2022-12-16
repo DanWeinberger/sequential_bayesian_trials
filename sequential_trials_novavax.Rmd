@@ -396,7 +396,7 @@ probs <- all.mods %>%
   ungroup()
 ```
 
-### Trajectories for 500 trials
+### Trajectories of P(benefit) for a subset of trials
 
 This shows how the probabilities evolve as more data accrue. This shows probability of any benefit: P(VE\>0\|data)
 
@@ -411,12 +411,86 @@ ggplot( aes(x=pop, y=p_any_benefit0, group=interaction(repN,prior.info), color=P
   facet_wrap(~prior.info)
 ```
 
-## Stopping criteria
+### Bayesian power for fixed sample size
 
-If doing this as a trial with fixed sample size, can just use the plots above as a guid; if performing as a sequential trial, need to look at cumulative probability of having hit the stopping criteria by a certain point. P(benefit\>0.95\|data)
+What proportion of trials would have a P(benefit\>0.975\|data) at different sample sizes? 
 
-for each trial, call 0/1 based on if we have hit 0.95 at this sample size or earlier
 
+for each trial, call 0/1 based on if we have hit 0.975 at this sample size or earlier
+
+```{r, fig.width=4, fig.height=2}
+power1 =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff_any = if_else(p_any_benefit0>0.975,1,0),
+          eff_10 = if_else(p_moderate_0_90>0.975,1,0),
+          eff_25 = if_else(p_moderate_0_75>0.975,1,0),
+          futile_30 = if_else(p_futile>0.975,1,0),
+            ) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_eff_any = mean(eff_any),
+              prop_eff_10 = mean(eff_10),
+              prop_eff_25 = mean(eff_25),
+              prop_futile_30 = mean(futile_30),
+              )        
+```
+
+```{r, fig.width=4, fig.height=2}
+
+power1 %>%
+ggplot(aes( x=pop, y=prop_eff_any, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >97.5% probability that effect is >0% VE')
+```
+P VE >10%
+```{r, fig.width=4, fig.height=2}
+power1 %>%
+ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >97.5% probability that effect is >10% VE')
+```
+
+P VE >25%
+```{r, fig.width=4, fig.height=2}
+power1 %>%
+ggplot(aes( x=pop, y=prop_eff_25, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >97.5% probability that effect is >25% VE')
+```
+
+P Futile (VE <30%)
+```{r, fig.width=4, fig.height=2}
+power1 %>%
+ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >97.5% probability that effect is <30% VE')
+```
+```{r}
+ggplot(power1, aes( x=prop_futile_30, y=prop_eff_any, group=prior.info, color=prior.info)) +
+  geom_point() +
+  theme_classic() +
+  facet_wrap(~ ve.new.trial)
+```
+
+
+
+
+### Bayesian power for sequential trial with looks every 100 people
+
+Evaluate cumulate probability of hittig the threshold
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
@@ -434,7 +508,7 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray')+
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >97.5% prob that effect is >0%VE')
 
 stopped_efficacy1 =probs %>%
