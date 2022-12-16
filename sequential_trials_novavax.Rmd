@@ -15,6 +15,7 @@ library(patchwork)
 library(stringr)
 library(pbapply)
 library(parallel)
+library(plotly)
 
 library(ggplot2)
 library(extraDistr)
@@ -34,13 +35,11 @@ source('./R/run_all_models.R')
 
 N.sim=500
 
+
 ```
 
+Prior for VE proposed <https://hbiostat.org/proj/covid19/bayesplan.html#operating-characteristics> (low probability of extreme effects, symmetric around 0) A skeptical prior as defined by Frank harrell has low probability of extremes (e.g., 5% prior probability that the effect is \>95% or 5% that it is the inverse )
 
-test
-
-Prior for VE proposed https://hbiostat.org/proj/covid19/bayesplan.html#operating-characteristics (low probability of extreme effects, symmetric around 0)
-A skeptical prior as defined by Frank harrell has low probability of extremes (e.g., 5% prior probability that the effect is >95% or 5% that it is the inverse )
 ```{r}
 
 # p(RR<0.05) = P(RR>1/0.05) 
@@ -67,6 +66,7 @@ hist(rnorm(10000, mean=prior.mean.logrr, sd=prior.sd.logrr))  #informative prior
 ```
 
 For commensurate prior, need to set hyperior for variance as well. If we were to use the historical data fuklly, we would want the hyperprior for posterior variance for commensurate to approach 0. If it doesn't use it at all, we would want variance to be sufficiently large to cover negative and neutral effects
+
 ```{r}
  hist(rgamma(1000,0.01, 0.01)) # gamma hyperprior from psborrow
  mean(rgamma(1000,0.01, 0.01)) # gamma hyperprior from psborrow
@@ -113,8 +113,8 @@ hist(rnorm(10000, mean=prior.mean.logrr, sd=1.8)) #infrmative mean
 
 ```
 
-
 VE from Novavax. This function takes the mean and 95% CI of vaccine effectiveness, converts to a log(RR), and estimates the precision fro the CIs, assuming it is symmetric around the mean (on scale of log(RR))
+
 ```{r}
 #This is main novavax result
 #prior.data <- prior.data.func(ve.obs.mean=39.4, ve.obs.lcl=5.3, ve.obs.ucl=61.2, N_cases_orig =c(35,41), pop_orig= c(1430, 2765))
@@ -140,7 +140,9 @@ set.ve.new.trial.higher = 90
 ```
 
 ## Scenario 1: Same VE as original trial
+
 Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary endpoint in 90 days
+
 ```{r}
 set.seed(123)
 
@@ -153,6 +155,7 @@ sim1 <- sim.data.func(N.vax = 10000,
 ```
 
 ## Scenario 2: no actual effect
+
 ```{r}
 set.seed(456)
 
@@ -164,6 +167,7 @@ sim2 <- sim.data.func(N.vax = 10000,
 ```
 
 ## Scenario 3: discrepant actual effect
+
 ```{r}
 set.seed(456)
 
@@ -173,7 +177,6 @@ sim3 <- sim.data.func(N.vax = 10000,
                      ve.new.trial=set.ve.new.trial.higher,
                      n.sim=N.sim)
 ```
-
 
 ## At which points do we want to evaluate VE?
 
@@ -185,10 +188,10 @@ eval_points = seq(from=100, to=2000, by=100)
 
 ```
 
-test run. 500 vaccinees+500 controls. It takes 0.27 seconds for 1 run. Need to test 20 cut points, 3 true VE levels, and 500 sims (30,000 combos). This would take 135 minutes if run sequentially. 
-
+test run. 500 vaccinees+500 controls. It takes 0.27 seconds for 1 run. Need to test 20 cut points, 3 true VE levels, and 500 sims (30,000 combos). This would take 135 minutes if run sequentially.
 
 generate combined dataset for modeling--need to fill 0s if stratum not represented
+
 ```{r}
 mod.ds1 <- lapply(eval_points , function(set.pop){
     ds1 <- bind_rows(sim1, sim2, sim3) %>%
@@ -207,6 +210,7 @@ return(ds1)
 ```
 
 Accrual of cases in the 500 trials
+
 ```{r}
 mod.ds1 %>%
   filter(ve.new.trial==44.4) %>%
@@ -215,10 +219,7 @@ mod.ds1 %>%
   theme_classic()
 ```
 
-
-
-Prior selection based on: https://hbiostat.org/proj/covid19/bayesplan.html
-
+Prior selection based on: <https://hbiostat.org/proj/covid19/bayesplan.html>
 
 ```{r}
 ptm <- proc.time()
@@ -253,6 +254,7 @@ bind_rows(mod1, mod2, mod3, mod4)
 ```
 
 Check dataset--shows all strata have 2 obs
+
 ```{r}
 
 mod.ds1 %>%
@@ -262,11 +264,8 @@ mod.ds1 %>%
   summarize(n_obs_range =range(n_obs))
 ```
 
+Call all models for both simulated datasets. Use parallel processing; takes \~60 min to run on 7 cores
 
-
-
-
-Call all models for both simulated datasets. Use parallel processing; takes ~60 min to run on 7 cores
 ```{r, eval=F}
 ptm <- proc.time()
 
@@ -399,7 +398,7 @@ probs <- all.mods %>%
 
 ### Trajectories for 500 trials
 
-This shows how the probabilities evolve as more data accrue. This shows probability of any benefit: P(VE>0|data)
+This shows how the probabilities evolve as more data accrue. This shows probability of any benefit: P(VE\>0\|data)
 
 ```{r}
 probs %>%
@@ -412,12 +411,137 @@ ggplot( aes(x=pop, y=p_any_benefit0, group=interaction(repN,prior.info), color=P
   facet_wrap(~prior.info)
 ```
 
+## Stopping criteria
 
-### Summaries of the trajectories 
+If doing this as a trial with fixed sample size, can just use the plots above as a guid; if performing as a sequential trial, need to look at cumulative probability of having hit the stopping criteria by a certain point. P(benefit\>0.95\|data)
+
+for each trial, call 0/1 based on if we have hit 0.95 at this sample size or earlier
+
+```{r, fig.width=6, fig.height=3}
+stopped_efficacy1 =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_any_benefit0>0.975),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >97.5% prob that effect is >0%VE')
+
+stopped_efficacy1 =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_moderate_0_90>0.975),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray') +
+  ggtitle('Cumulative proportion with >97.5% prob that effect is >10%VE')
+
+
+stopped_efficacy2 =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_moderate_0_75>0.975),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+stopped_efficacy2 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >97.5% prob that effect is >25%VE')
+
+
+stopped_efficacy3 =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_any_benefit0>0.999),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+stopped_efficacy3 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >99.9% prob that effect is >0%VE')
+
+stopped_efficacy3 =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_any_benefit0>0.99),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+stopped_efficacy3 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >99% prob that effect is >0%VE')
+```
+
+Futility
+
+```{r}
+stopped_futility =probs %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN, pop, ve.new.trial,prior.info) %>%
+  mutate( fut = 1*((1-p_any_benefit0)>0.5),
+            stop = cumsum(fut) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+ggplot(stopped_futility, aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.95))
+```
+
+### Summaries of the trajectories
 
 What is the probability of detecting any effect if there is (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? The shaded region shows where 90% of the estimates lie
- 
-```{r, fig.width=7, fig.height=7} 
+
+```{r, fig.width=7, fig.height=7}
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
@@ -434,10 +558,9 @@ ggplot( aes(x=pop, y=p_any_benefit0_mean,  color=interaction(Pooling_type,prior.
   ggtitle('Prob any effect (mean and central 90% from 500 simulated trials)')
 ```
 
-
 What is the probability of detecting small or no effect (or effect between 20% decline or 25% increase) when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
 
-```{r, fig.width=7, fig.height=7} 
+```{r, fig.width=7, fig.height=7}
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
@@ -451,13 +574,12 @@ ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type
                    color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
   facet_grid(prior.info~ve.new.trial)+
-  ggtitle('Prob no effect')
+  ggtitle('Prob effect is small or null')
 ```
-
 
 What is the probability of detecting a moderate effect or greater (at least 25% decline) effect when the data truly have: (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? the shaded region shows where 90% of the estimates lie
 
-```{r}
+```{r, fig.width=7, fig.height=7}
 probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
@@ -470,7 +592,7 @@ ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type
                    ymax=p_ucl,
                    color=Pooling_type, group=interaction(Pooling_type,prior.info)), alpha=0.1) +
   theme_classic() +
-  facet_wrap(~ve.new.trial)+
+  facet_grid(prior.info~ve.new.trial)+
   ggtitle('Prob Moderate effect')
 ```
 
@@ -493,7 +615,8 @@ ggplot( aes(x=pop, y=p_mean,  color=Pooling_type, group=interaction(Pooling_type
   ggtitle('Prob Harmful effect')
 ```
 
-Evolution of mean  estimates for log(VE)..
+Evolution of mean estimates for log(VE)..
+
 ```{r}
 probs %>%
   filter(ve.new.trial==44.4 & Pooling_type != 'Full') %>%
@@ -505,7 +628,8 @@ ggplot( aes(x=pop, y=parm_mean, group=repN, color=Pooling_type)) +
   facet_wrap(prior.info~Pooling_type)
 ```
 
-Evolution of beta1 estimates for a single trial.  note the 0.01,0.01 is truncated at smallest trial due to massive uncertainty
+Evolution of beta1 estimates for a single trial. note the 0.01,0.01 is truncated at smallest trial due to massive uncertainty
+
 ```{r}
 probs %>%
   filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==3) %>%
@@ -532,8 +656,46 @@ ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info),
           #         ymax=ucl,
           #         color=Pooling_type, group=interaction(repN,Pooling_type,prior.info)), alpha=0.1) +
   geom_hline(yintercept=0, lty=2)
+
+
+
 ```
+
+Same, with no real effect
+
+```{r}
+probs %>%
+  filter(ve.new.trial==0 & Pooling_type != 'Full' & repN==3) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=Pooling_type)) +
+  geom_line( alpha=1) +
+  theme_classic() +
+   geom_ribbon( aes(x=pop, ymin=lcl, 
+                   ymax=ucl,
+                   color=Pooling_type, group=Pooling_type), alpha=0.1) +
+  facet_wrap(prior.info~Pooling_type) +
+  ylim(-4,4) +
+  geom_hline(yintercept=0, lty=2)
+
+probs %>%
+  filter(ve.new.trial==0 & Pooling_type != 'Full' & repN==2) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info), color=interaction(repN,Pooling_type,prior.info))) +
+  geom_line( alpha=0.5) +
+  theme_classic() +
+    #ylim(-4,4) +
+
+  # geom_ribbon( aes(x=pop, ymin=lcl, 
+          #         ymax=ucl,
+          #         color=Pooling_type, group=interaction(repN,Pooling_type,prior.info)), alpha=0.1) +
+  geom_hline(yintercept=0, lty=2)
+
+
+
+```
+
 or if there is no real effect
+
 ```{r}
 probs %>%
   filter(ve.new.trial==0 & Pooling_type != 'Full' & repN==3) %>%
@@ -574,8 +736,8 @@ ggplot( aes(x=pop, y=parm_mean, group=interaction(repN,Pooling_type,prior.info),
 
 ## What proportion of the trials have a probability of any effect? (kind of like power)
 
-```{r, fig.width=}
-probs %>%
+```{r, fig.width=7, fig.height=3}
+p1 <-probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
   group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
@@ -588,6 +750,27 @@ ggplot( aes(x=pop, y=proportion_any_benefit,  color=interaction(Pooling_type,pri
     geom_hline(yintercept=0.05, lty=2, col='gray') +
 
   ggtitle('Proportion of trials showing probability of benefit >97.5%')
+
+p1
+
+plotly::ggplotly(p1)
+```
+
+
+same for larger effects
+
+```{r, fig.width=}
+probs %>%
+  filter(Pooling_type != 'Full') %>%
+  mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
+  group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
+  summarize( p_nontrivial_benefit= mean(p_nontrivial_0_95>0.975)) %>%
+ggplot( aes(x=pop, y=p_nontrivial_benefit,  color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info))) +
+  geom_line() +
+  theme_classic() +
+  facet_wrap(~ve.new.trial)+
+  geom_hline(yintercept=c(0.05,0.8), lty=2, col='gray') +
+  ggtitle('Proportion of trials showing >97.5% probability of non-trivial benefit (VE>5%)')
 ```
 
 same for small or no effect (excludes P(harm))
@@ -615,14 +798,10 @@ probs %>%
   theme_classic()
 ```
 
-
-
-
-
-
 ## Traditional frequentist measures of power, type 1 error
 
-Is the UCL <0?
+Is the UCL \<0?
+
 ```{r}
 
 powers <- all.mods %>%
@@ -680,6 +859,7 @@ ggplot(prop_pop_90, aes(x=pop, y=prop_no_effect, group=Pooling_type, color=Pooli
 How do the three models perform when there is NO real effect?
 
 1: no pooling 2: highly informative prior (full use) 3:Gamma, (4:Half-Cauchy 5: mixture model)
+
 ```{r, fig.width=8, fig.height=3}
 
  all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
@@ -690,7 +870,9 @@ ggplot()
 
 
 ```
+
 For a larger dataset
+
 ```{r, fig.width=6, fig.height=3}
  all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==1000) %>%   caterplot.func() +
  all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='Full' & pop==1000) %>%   caterplot.func() +
@@ -698,7 +880,6 @@ For a larger dataset
 
 
 ```
-
 
 ```{r, fig.width=6, fig.height=3}
  all.mods %>%   filter(ve.new.trial==0 & Pooling_type=='none' & pop==1500) %>%   caterplot.func() +
@@ -740,7 +921,6 @@ How do the three models perform when there is a real effect, consistent with the
 
 ```
 
-
 ```{r, fig.width=6, fig.height=3}
  all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='none' & pop==1500) %>%   caterplot.func() +
  all.mods %>%   filter(ve.new.trial==44.4 & Pooling_type=='Full' & pop==1500) %>%   caterplot.func() +
@@ -750,6 +930,7 @@ How do the three models perform when there is a real effect, consistent with the
 ```
 
 ## What if there is a discrepant effect between prior and new trial
+
 ```{r, fig.width=6, fig.height=3}
  all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='none' & pop==300) %>%   caterplot.func() +
  all.mods %>%   filter(ve.new.trial==90 & Pooling_type=='Full' & pop==300) %>%   caterplot.func() +
