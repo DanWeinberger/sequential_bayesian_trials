@@ -413,19 +413,19 @@ ggplot( aes(x=pop, y=p_any_benefit0, group=interaction(repN,prior.info), color=P
 
 ### Bayesian power for fixed sample size
 
-What proportion of trials would have a P(benefit\>0.975\|data) at different sample sizes? 
+What proportion of trials would have a P(benefit\>0.95\|data) at different sample sizes? 
 
 
-for each trial, call 0/1 based on if we have hit 0.975 at this sample size or earlier
+for each trial, call 0/1 based on if we have hit 0.95 at this sample size or earlier
 
 ```{r, fig.width=4, fig.height=2}
 power1 =probs %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff_any = if_else(p_any_benefit0>0.975,1,0),
-          eff_10 = if_else(p_moderate_0_90>0.975,1,0),
-          eff_25 = if_else(p_moderate_0_75>0.975,1,0),
-          futile_30 = if_else(p_futile>0.975,1,0),
+  mutate( eff_any = if_else(p_any_benefit0>0.95,1,0),
+          eff_10 = if_else(p_moderate_0_90>0.95,1,0),
+          eff_25 = if_else(p_moderate_0_75>0.95,1,0),
+          futile_30 = if_else(p_futile>0.95,1,0),
             ) %>%
   ungroup() %>%
   group_by(pop, ve.new.trial,prior.info) %>%
@@ -444,7 +444,7 @@ ggplot(aes( x=pop, y=prop_eff_any, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Proportion of trials with >97.5% probability that effect is >0% VE')
+  ggtitle('Proportion of trials with >95% probability that effect is >0% VE')
 ```
 P VE >10%
 ```{r, fig.width=4, fig.height=2}
@@ -454,7 +454,7 @@ ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Proportion of trials with >97.5% probability that effect is >10% VE')
+  ggtitle('Proportion of trials with >95% probability that effect is >10% VE')
 ```
 
 P VE >25%
@@ -465,7 +465,7 @@ ggplot(aes( x=pop, y=prop_eff_25, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Proportion of trials with >97.5% probability that effect is >25% VE')
+  ggtitle('Proportion of trials with >95% probability that effect is >25% VE')
 ```
 
 P Futile (VE <30%)
@@ -476,26 +476,20 @@ ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Proportion of trials with >97.5% probability that effect is <30% VE')
-```
-```{r}
-ggplot(power1, aes( x=prop_futile_30, y=prop_eff_any, group=prior.info, color=prior.info)) +
-  geom_point() +
-  theme_classic() +
-  facet_wrap(~ ve.new.trial)
+  ggtitle('Proportion of trials with >95% probability that effect is <30% VE')
 ```
 
 
 
-
-### Bayesian power for sequential trial with looks every 100 people
+### Bayesian power for sequential trial with looks every 500 people
 
 Evaluate cumulate probability of hittig the threshold
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
+  filter(pop %in% c(500, 1000,1500, 2000)) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_any_benefit0>0.975),
+  mutate( eff = 1*(p_any_benefit0>0.95),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
@@ -509,12 +503,12 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >97.5% prob that effect is >0%VE')
+  ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
 
 stopped_efficacy1 =probs %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_moderate_0_90>0.975),
+  mutate( eff = 1*(p_moderate_0_90>0.95),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
@@ -528,13 +522,13 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray') +
-  ggtitle('Cumulative proportion with >97.5% prob that effect is >10%VE')
+  ggtitle('Cumulative proportion with >95% prob that effect is >10%VE')
 
 
 stopped_efficacy2 =probs %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_moderate_0_75>0.975),
+  mutate( eff = 1*(p_moderate_0_75>0.95),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
@@ -548,7 +542,7 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.95), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >97.5% prob that effect is >25%VE')
+  ggtitle('Cumulative proportion with >95% prob that effect is >25%VE')
 
 
 stopped_efficacy3 =probs %>%
@@ -815,7 +809,7 @@ p1 <-probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
   group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
-  summarize( proportion_any_benefit= mean(p_any_benefit0>0.975 )) %>%
+  summarize( proportion_any_benefit= mean(p_any_benefit0>0.95 )) %>%
 ggplot( aes(x=pop, y=proportion_any_benefit,  color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info))) +
   geom_line() +
   theme_classic() +
@@ -823,7 +817,7 @@ ggplot( aes(x=pop, y=proportion_any_benefit,  color=interaction(Pooling_type,pri
   geom_hline(yintercept=0.8, lty=2, col='gray') +
     geom_hline(yintercept=0.05, lty=2, col='gray') +
 
-  ggtitle('Proportion of trials showing probability of benefit >97.5%')
+  ggtitle('Proportion of trials showing probability of benefit >95%')
 
 p1
 
@@ -838,13 +832,13 @@ probs %>%
   filter(Pooling_type != 'Full') %>%
   mutate(Pooling_type = as.factor(Pooling_type), ve.new.trial=as.factor(ve.new.trial)) %>%
   group_by(pop, ve.new.trial,Pooling_type,prior.info) %>%
-  summarize( p_nontrivial_benefit= mean(p_nontrivial_0_95>0.975)) %>%
+  summarize( p_nontrivial_benefit= mean(p_nontrivial_0_95>0.95)) %>%
 ggplot( aes(x=pop, y=p_nontrivial_benefit,  color=interaction(Pooling_type,prior.info), group=interaction(Pooling_type,prior.info))) +
   geom_line() +
   theme_classic() +
   facet_wrap(~ve.new.trial)+
   geom_hline(yintercept=c(0.05,0.8), lty=2, col='gray') +
-  ggtitle('Proportion of trials showing >97.5% probability of non-trivial benefit (VE>5%)')
+  ggtitle('Proportion of trials showing >95% probability of non-trivial benefit (VE>5%)')
 ```
 
 same for small or no effect (excludes P(harm))
