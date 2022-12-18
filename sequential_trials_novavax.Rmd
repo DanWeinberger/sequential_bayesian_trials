@@ -483,7 +483,8 @@ ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
 
 ### Bayesian power for sequential trial with looks every 500 people
 
-Evaluate cumulate probability of hittig the threshold
+Evaluate cumulative probability of hitting the threshold
+
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
   filter(pop %in% c(500, 1000,1500, 2000)) %>%
@@ -506,6 +507,8 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
 
 stopped_efficacy1 =probs %>%
+    filter(pop %in% c(500, 1000,1500, 2000)) %>%
+
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_moderate_0_90>0.95),
@@ -526,6 +529,7 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
 
 
 stopped_efficacy2 =probs %>%
+    filter(pop %in% c(500, 1000,1500, 2000)) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_moderate_0_75>0.95),
@@ -537,6 +541,7 @@ stopped_efficacy2 =probs %>%
 
 
 stopped_efficacy2 %>%
+    filter(pop %in% c(500, 1000,1500, 2000)) %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
@@ -546,6 +551,7 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
 
 
 stopped_efficacy3 =probs %>%
+    filter(pop %in% c(500, 1000,1500, 2000)) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_any_benefit0>0.999),
@@ -565,6 +571,7 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   ggtitle('Cumulative proportion with >99.9% prob that effect is >0%VE')
 
 stopped_efficacy3 =probs %>%
+    filter(pop %in% c(500, 1000,1500, 2000)) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_any_benefit0>0.99),
@@ -588,6 +595,7 @@ Futility
 
 ```{r}
 stopped_futility =probs %>%
+    filter(pop %in% c(500, 1000,1500, 2000)) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN, pop, ve.new.trial,prior.info) %>%
   mutate( fut = 1*((1-p_any_benefit0)>0.5),
