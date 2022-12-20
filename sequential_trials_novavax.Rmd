@@ -498,7 +498,7 @@ stopped_efficacy1 =probs %>%
     summarize(prop_stopped = mean(stop))        
 
 
-stopped_efficacy1 %>%
+p1a <- stopped_efficacy1 %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
     geom_point() +
@@ -507,7 +507,7 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
 
-stopped_efficacy1 =probs %>%
+ stopped_efficacy1 =probs %>%
     filter(pop %in% c(500, 1000,1500, 2000)) %>%
 
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
@@ -520,7 +520,7 @@ stopped_efficacy1 =probs %>%
     summarize(prop_stopped = mean(stop))        
 
 
-stopped_efficacy1 %>%
+p1b <- stopped_efficacy1 %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
     geom_point() +
@@ -542,7 +542,7 @@ stopped_efficacy2 =probs %>%
     summarize(prop_stopped = mean(stop))        
 
 
-stopped_efficacy2 %>%
+p2 <- stopped_efficacy2 %>%
     filter(pop %in% c(500, 1000,1500, 2000)) %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
@@ -564,7 +564,7 @@ stopped_efficacy3 =probs %>%
     summarize(prop_stopped = mean(stop))        
 
 
-stopped_efficacy3 %>%
+p3a <-stopped_efficacy3 %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
@@ -584,14 +584,29 @@ stopped_efficacy3 =probs %>%
     summarize(prop_stopped = mean(stop))        
 
 
-stopped_efficacy3 %>%
+p3b <- stopped_efficacy3 %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
   geom_point() +
     facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >99% prob that effect is >0%VE')
+  ggtitle('Cumulative proportion with >99% prob that effect is >0% VE')
+
+
+
+ggplotly(p1a)
+ggplotly(p1b)
+ggplotly(p2)
+ggplotly(p3a)
+ggplotly(p3b)
+
+p1a 
+p1b
+p2
+p3a
+pb3
+
 ```
 
 Futility
