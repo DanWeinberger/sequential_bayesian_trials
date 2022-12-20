@@ -1,8 +1,6 @@
 library(shiny)
 library(dplyr)
 library(ggplot2)
-library(patchwork)
-library(RColorBrewer)
 library(shinydashboard)
 library(reshape2)
 
@@ -22,7 +20,7 @@ power <- readRDS('./Results/power_point.rds')
 # set.alpha <-  c(0.05, 0.025,0.01,0.001)
 # combos <- expand.grid(look_freq, set.alpha) %>% split( 1:nrow(.))
 # 
-# cum_power <- pbapply::pblapply(combos, cum_power_func) %>%  bind_rows() %>% saveRDS('./Results/power_cum.rds') 
+#  cum_power <- pbapply::pblapply(combos, cum_power_func) %>%  bind_rows() %>% saveRDS('./Results/power_cum.rds')
 
 cum_power <-  readRDS('./Results/power_cum.rds') 
 
@@ -39,12 +37,6 @@ app2 <- shinyApp(
     dashboardHeader(title = "Performance of simulated RSV vaccine trial",titleWidth=500),
     
     dashboardSidebar(
-      selectInput("prior", "Select prior:", 
-                  prior.vector, multiple=T),
-      
-      selectInput("ve.new", "True Vaccine effectiveness in new trial:", 
-                  true.ve.vector, multiple=T),
-      
       selectInput("endpoint.ve", "Endpoint for stopping trial:", 
                   outcome.ve.vector, multiple=F),
       
@@ -52,41 +44,54 @@ app2 <- shinyApp(
                   unique(cum_power$alpha), multiple=F),
       
       selectInput("looks", "Evaluate results after every Nth subject:", 
-                 unique(cum_power$look_freq), multiple=F)
+                  unique(cum_power$look_freq), multiple=F),
+      selectInput("prior", "Select prior:", 
+                  prior.vector, multiple=T, selected=prior.vector),
+      
+      selectInput("ve.new", "True Vaccine effectiveness in new trial:", 
+                  true.ve.vector, multiple=T, selected=true.ve.vector)
+      
+  
     ),
     dashboardBody(
       fluidRow(
-        box(tabPanel("power.point", plotOutput("power.point")), width=4),
-        box(tabPanel("power.cum", plotOutput("power.cum")), width=4)
-      )
+        tabPanel(title="",
+                 tabBox( title="Trial performance", id='tabset1a',height='auto',width=12,
+                         tabPanel(title='Single readout',
+                                  plotOutput("power.point" )),
+                         tabPanel(title='sequential trial',
+                                  plotOutput("power.cum")   ))
+        )
+        
     )
+  )
   ), 
   
   server = function(input, output) {
     
     output$power.point = renderPlot({
       p1 <-  power %>%
-        filter(outcome==input$endpoint.ve & prior.info %in% input$prior & alpha==set.alpha) %>%
+        filter(outcome==input$endpoint.ve & prior.info %in% input$prior & alpha==input$set.alpha) %>%
         ggplot(aes( x=pop, y=proportion, group=prior.info, color=prior.info)) +
         geom_line() +
         facet_wrap(~ ve.new.trial) +
         theme_classic() +
         geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-        ggtitle(paste0('Proportion of trials with >', 100*(1-alpha),  '% probability that effect is', input$endpoint.ve))
+        ggtitle(paste0('Proportion of trials with >', 100*(1-input$alpha),  '% probability that effect is ', input$endpoint.ve))
       p1
     })
     
     output$power.cum = renderPlot({
       p2 = cum_power %>%
-        filter(look_freq %in% input$looks & outcome==input$endpoint.ve & prior.info %in% input$prior) 
-        stopped_efficacy1 %>%
+        mutate(ve.new.trial=as.factor(ve.new.trial)) %>%
+        filter(alpha == input$set.alpha & look_freq %in% input$looks & outcome==input$endpoint.ve & prior.info %in% input$prior)  %>%
         ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
         geom_line() +
         geom_point() +
         facet_wrap(~ ve.new.trial) +
         theme_classic() +
         geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-        ggtitle(paste0('Cumulative proportion with >', 100*(1-alpha),  '% prob that effect is ', input$endpoint.ve))
+        ggtitle(paste0('Cumulative proportion with >', 100*(1-input$alpha),  '% prob that effect is ', input$endpoint.ve))
       p2
     })
     

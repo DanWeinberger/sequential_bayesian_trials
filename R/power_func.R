@@ -36,7 +36,7 @@ power.func <- function(set.alpha=0.05){
             prop_futile_30 = mean(futile_30),
   )%>%
   mutate(alpha=set.alpha) %>%
-  reshape2::melt(id.vars=c('pop','ve.new.trial','prior.info')) %>%
+  reshape2::melt(id.vars=c('pop','ve.new.trial','prior.info','alpha')) %>%
   rename(proportion=value, outcome=variable) %>%
   mutate( outcome= factor(outcome, c('prop_eff_0',     
                                      'prop_eff_5',
@@ -55,6 +55,8 @@ cum_power_func <- function(parms){
   parms <- as.numeric(parms)
   cum_power <-
   readRDS( './Results/all.mods_novavax.rds') %>%
+    filter(parm=='beta1') %>%
+    select(pop, ve.new.trial, prior.info,repN,p_0, p_0_95,p_0_90,p_0_85,p_0_80,p_0_75,p_0_70,p_futile) %>%
   reshape2::melt(id.vars=c('pop','ve.new.trial','prior.info','repN')) %>%
    rename(outcome=variable) %>%
   filter(pop %in% seq(from=parms[1], to=2000, by=parms[1])) %>%
@@ -66,15 +68,17 @@ cum_power_func <- function(parms){
   ungroup() %>%
   group_by(outcome,pop, ve.new.trial,prior.info) %>%
   summarize(prop_stopped = mean(stop))    %>%
-    mutate(alpha=parms[2], look_freq=parms[1],
-           outcome= factor(outcome, c('prop_eff_0',     
-                 'prop_eff_5',
-                 'prop_eff_10',
-                 'prop_eff_15',
-                 'prop_eff_20',
-                 'prop_eff_25',
-                 'prop_eff_30',
-                 'prop_futile_30'), 
+    mutate(alpha=parms[2], 
+           look_freq=parms[1],
+           outcome= factor(outcome, 
+                c('p_0',     
+                 'p_0_95',
+                 'p_0_90',
+                 'p_0_85',
+                 'p_0_80',
+                 'p_0_75',
+                 'p_0_70',
+                 'p_futile'), 
                  labels=c('VE>0%','VE>5%','VE>10%','VE>15%','VE>20%','VE>25%','VE>30%','Futile: VE<30%'))
     )
 
