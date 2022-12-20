@@ -63,11 +63,8 @@ ci975<-matrix(ci975, ncol=2)
 p_any_benefit0 <- mean(exp(posterior_samples.all[,'beta1']) < 1)
 p_nontrivial_0_95 <- mean(exp(posterior_samples.all[,'beta1']) < 0.95)
 p_moderate_0_75 <- mean(exp(posterior_samples.all[,'beta1']) < 0.75)
-p_moderate_0_90 <- mean(exp(posterior_samples.all[,'beta1']) < 0.90)
-
 p_harm_o1 <- mean(exp(posterior_samples.all[,'beta1']) >1)
-#p_similar_0_8__1_25 <- mean(exp(posterior_samples.all[,'beta1']) <1.30 & exp(posterior_samples.all[,'beta1']) >0.8)
-p_futile <- mean(exp(posterior_samples.all[,'beta1']) > 0.7 ) #if VE<30%, it is futile
+p_similar_0_8__1_25 <- mean(exp(posterior_samples.all[,'beta1']) <1.25 & exp(posterior_samples.all[,'beta1']) >0.8)
 
 row.names(ci)<-sample.labs
 #post_means<-sprintf("%.1f",round(post_means,1))
@@ -83,13 +80,11 @@ combined <- cbind.data.frame(post_means, ci ,ci975,post_var, names(post_means),
                            'p_nontrivial_0_95'=p_nontrivial_0_95,
                            'p_moderate_0_75'=p_moderate_0_75,
                            'p_harm_o1' =p_harm_o1,
-                           #'p_similar_0_8__1_25'=p_similar_0_8__1_25,
-                           'p_futile'= p_futile,
-                           'p_moderate_0_90'=p_moderate_0_90
+                           'p_similar_0_8__1_25'=p_similar_0_8__1_25
                            
 )
 names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var',   'parm', 'repN','pop','ve.new.trial',
-                     'p_any_benefit0','p_nontrivial_0_95','p_moderate_0_75','p_harm_o1','p_futile','p_moderate_0_90'
+                     'p_any_benefit0','p_nontrivial_0_95','p_moderate_0_75','p_harm_o1','p_similar_0_8__1_25'
                      )
 
 
