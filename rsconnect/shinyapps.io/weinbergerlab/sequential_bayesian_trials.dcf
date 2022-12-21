@@ -1,0 +1,14 @@
+name: sequential_bayesian_trials
+title: sequential_bayesian_trials
+username:
+account: weinbergerlab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 7920816
+bundleId: 6658738
+url: https://weinbergerlab.shinyapps.io/sequential_bayesian_trials/
+when: 1671562910.25146
+lastSyncTime: 1671562910.25146
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: Results/all.mods_matisse.rds|Results/all.mods_novavax.rds|Results/bayesian_power_novavax.rds|sequential_trials matisse.Rmd|sequential_trials.Rmd|sequential_trials_novavax.html|sequential_trials_novavax.Rmd

@@ -1,6 +1,7 @@
 library(shiny)
 library(dplyr)
 library(ggplot2)
+library(plotly)
 library(shinydashboard)
 library(reshape2)
 
@@ -12,17 +13,18 @@ library(reshape2)
 #   bind_rows() %>%
 # saveRDS('./Results/power_point.rds')
 
-power <- readRDS('./Results/power_point.rds')
-
 
 #Power for a sequential trial with looks every Nth subject
-# look_freq <- c(500, 100,250,1000,2000)
+# look_freq <- c(500, 100,200,1000,2000)
 # set.alpha <-  c(0.05, 0.025,0.01,0.001)
 # combos <- expand.grid(look_freq, set.alpha) %>% split( 1:nrow(.))
 # 
 #  cum_power <- pbapply::pblapply(combos, cum_power_func) %>%  bind_rows() %>% saveRDS('./Results/power_cum.rds')
 
-cum_power <-  readRDS('./Results/power_cum.rds') 
+power <- readRDS('./Results/power_point.rds')
+
+cum_power <-  readRDS('./Results/power_cum.rds') %>%
+  dplyr::filter(look_freq !=250)
 
 prior.vector <- unique(power$prior.info)
 
@@ -30,7 +32,7 @@ true.ve.vector <- unique(power$ve.new.trial)
 outcome.ve.vector <- unique(power$outcome)
 
 
-app2 <- shinyApp(
+shinyApp(
   
   ui = dashboardPage(
     
@@ -58,9 +60,9 @@ app2 <- shinyApp(
         tabPanel(title="",
                  tabBox( title="Trial performance", id='tabset1a',height='auto',width=12,
                          tabPanel(title='Single readout',
-                                  plotOutput("power.point" )),
+                                  plotlyOutput("power.point" )),
                          tabPanel(title='sequential trial',
-                                  plotOutput("power.cum")   ))
+                                  plotlyOutput("power.cum")   ))
         )
         
     )
@@ -69,29 +71,36 @@ app2 <- shinyApp(
   
   server = function(input, output) {
     
-    output$power.point = renderPlot({
+    output$power.point = renderPlotly({
+      prob.cut <- 100*(1-as.numeric(input$set.alpha))
+      
       p1 <-  power %>%
-        filter(outcome==input$endpoint.ve & prior.info %in% input$prior & alpha==input$set.alpha) %>%
+        dplyr::filter(outcome==input$endpoint.ve & prior.info %in% input$prior & alpha==input$set.alpha) %>%
         ggplot(aes( x=pop, y=proportion, group=prior.info, color=prior.info)) +
         geom_line() +
         facet_wrap(~ ve.new.trial) +
         theme_classic() +
         geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-        ggtitle(paste0('Proportion of trials with >', 100*(1-input$alpha),  '% probability that effect is ', input$endpoint.ve))
+        xlab('Number of participants in vaccine arm') +
+        ggtitle(paste0('Proportion of trials with >',prob.cut,  '% probability that effect is ', input$endpoint.ve))
+      ggplotly(p1)
       p1
     })
     
-    output$power.cum = renderPlot({
+    output$power.cum = renderPlotly({
+      prob.cut <- 100*(1-as.numeric(input$set.alpha))
       p2 = cum_power %>%
         mutate(ve.new.trial=as.factor(ve.new.trial)) %>%
-        filter(alpha == input$set.alpha & look_freq %in% input$looks & outcome==input$endpoint.ve & prior.info %in% input$prior)  %>%
-        ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+        dplyr::filter(alpha == input$set.alpha & look_freq %in% input$looks & outcome==input$endpoint.ve & prior.info %in% input$prior)  %>%
+       ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
         geom_line() +
         geom_point() +
         facet_wrap(~ ve.new.trial) +
         theme_classic() +
         geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-        ggtitle(paste0('Cumulative proportion with >', 100*(1-input$alpha),  '% prob that effect is ', input$endpoint.ve))
+        xlab('Number of participants in vaccine arm') +
+        ggtitle(paste0('Cumulative proportion with >', prob.cut,  '% prob that effect is ', input$endpoint.ve))
+      ggplotly(p2)
       p2
     })
     
