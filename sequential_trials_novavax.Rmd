@@ -262,6 +262,9 @@ mod.ds1 %>%
   summarize(n_obs=n()) %>%
   ungroup() %>%
   summarize(n_obs_range =range(n_obs))
+
+mod.ds1.c <- mod.ds1 %>%
+  reshape2::dcast(repN+ve.new.trial + pop ~ treatment, value.var='N_cases')
 ```
 
 Call all models for both simulated datasets. Use parallel processing; takes \~60 min to run on 7 cores
@@ -413,8 +416,7 @@ ggplot( aes(x=pop, y=p_0, group=interaction(repN,prior.info), color=Pooling_type
 
 ### Bayesian power for fixed sample size
 
-What proportion of trials would have a P(benefit\>0.95\|data) at different sample sizes? 
-
+What proportion of trials would have a P(benefit\>0.95\|data) at different sample sizes?
 
 for each trial, call 0/1 based on if we have hit 0.95 at this sample size or earlier
 
@@ -423,6 +425,7 @@ power1 =probs %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff_0 = if_else(p_0>0.95,1,0),
+          eff_0_p99 = if_else(p_0>0.99,1,0),
           eff_5 = if_else(p_0_95>0.95,1,0),
           eff_10 = if_else(p_0_90>0.95,1,0),
           eff_15 = if_else(p_0_85>0.95,1,0),
@@ -434,6 +437,7 @@ power1 =probs %>%
   ungroup() %>%
   group_by(pop, ve.new.trial,prior.info) %>%
     summarize(prop_eff_0 = mean(eff_0),
+              prop_eff_0_p99=mean(eff_0_p99),
               prop_eff_5 = mean(eff_5),
             prop_eff_10 = mean(eff_10),
             prop_eff_15 = mean(eff_15),
@@ -443,6 +447,21 @@ power1 =probs %>%
               prop_futile_30 = mean(futile_30),
               )        
 ```
+
+
+```{r, fig.width=4, fig.height=2}
+
+power1 %>%
+  filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+ggplot(aes( x=pop, y=prop_eff_0, group=prior.info, color=prior.info, lty=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >95% probability that effect is >0% VE')
+```
+
+Figure S1
 
 ```{r, fig.width=4, fig.height=2}
 
@@ -454,7 +473,23 @@ ggplot(aes( x=pop, y=prop_eff_0, group=prior.info, color=prior.info)) +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Proportion of trials with >95% probability that effect is >0% VE')
 ```
-P VE >10%
+
+P VE \>10%
+
+
+Figure 2
+```{r, fig.width=4, fig.height=2}
+power1 %>%
+    filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info, lty=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >95% probability that effect is >10% VE')
+```
+
+Figure S2
 ```{r, fig.width=4, fig.height=2}
 power1 %>%
 ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info)) +
@@ -465,18 +500,49 @@ ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info)) +
   ggtitle('Proportion of trials with >95% probability that effect is >10% VE')
 ```
 
-P VE >25%
+P VE \>0%>0.99
+
+Figure 3
 ```{r, fig.width=4, fig.height=2}
+
 power1 %>%
-ggplot(aes( x=pop, y=prop_eff_25, group=prior.info, color=prior.info)) +
+      filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+ggplot(aes( x=pop, y=prop_eff_0_p99, group=prior.info, color=prior.info, lty=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Proportion of trials with >95% probability that effect is >25% VE')
+  ggtitle('Proportion of trials with >99% probability that effect is >0% VE')
 ```
 
-P Futile (VE <30%)
+Figure S3
+```{r, fig.width=4, fig.height=2}
+
+power1 %>%
+ggplot(aes( x=pop, y=prop_eff_0_p99, group=prior.info, color=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >99% probability that effect is >0% VE')
+```
+
+P Futile (VE \<30%)
+
+Figure S4
+```{r, fig.width=4, fig.height=2}
+power1 %>%
+        filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+
+ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info, lty=prior.info)) +
+  geom_line() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Proportion of trials with >95% probability that effect is <30% VE')
+```
+
+Figure S4
 ```{r, fig.width=4, fig.height=2}
 power1 %>%
 ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
@@ -488,17 +554,16 @@ ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
 ```
 
 
-
 ### Bayesian power for sequential trial with looks every 500 people
 
-Evaluate cumulative probability of hitting the threshold
+Evaluate cumulative probability of hitting the (P(VE>15%)>0.95)
 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
   filter(pop %in% c(500, 1000,1500, 2000)) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_0>0.95),
+  mutate( eff = 1*(p_0_85>0.96),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
@@ -514,7 +579,37 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
+ggplotly(p1a)
+p1a
+```
+Same thresholds but evaluate after every 100 
+```{r}
+stopped_efficacy1 =probs %>%
+  filter(pop %in% seq(100,2000, by=100)) %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_0_85>0.95),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
 
+
+p1a <- stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+    geom_point() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
+ggplotly(p1a)
+p1a
+```
+
+
+```{r}
  stopped_efficacy1 =probs %>%
     filter(pop %in% c(500, 1000,1500, 2000)) %>%
 
@@ -605,7 +700,6 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
 
 
 
-ggplotly(p1a)
 ggplotly(p1b)
 ggplotly(p2)
 ggplotly(p3a)
@@ -642,9 +736,91 @@ ggplot(stopped_futility, aes( x=pop, y=prop_stopped, group=prior.info, color=pri
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')
 ```
 
+### Observed data vs estimate
+
+
+Observed
+```{r}
+ obs_data <- mod.ds1.c %>%
+  mutate( obs_RR = vax/placebo ) 
+```
+
+```{r}
+obs_data %>%
+  filter(ve.new.trial==44.4)  %>%
+  ggplot( aes(x=pop, y=obs_RR, group=repN)) +
+  geom_line(alpha=0.1) +
+  theme_classic() +
+  ylim(0.2, 2)
+```
+
+```{r}
+obs_exp_data <-   obs_data %>%
+  left_join(probs, by=c('repN','pop','ve.new.trial')) 
+
+obs_exp_data %>%
+  filter(ve.new.trial==44.4 & prior.info=="N(0,1e-4)") %>%
+  ggplot(aes(x=log(obs_RR), y=parm_mean)) +
+  geom_point() +
+  theme_classic()
+
+obs_exp_data %>%
+  filter(ve.new.trial==44.4 & prior.info=="N(u1,tau); IG(0.01,0.01)") %>%
+  ggplot(aes(x=log(obs_RR), y=parm_mean)) +
+  geom_point() +
+  theme_classic()
+
+```
+
+Probability of success as a function of number of events
+
+```{r}
+obs_exp_data %>%
+  filter(ve.new.trial==44.4 & prior.info=="N(u1,tau); IG(0.01,0.01)") %>%
+  mutate(tot_events=placebo+vax) %>%
+   ggplot(aes(x=tot_events, y=p_0)) +
+  geom_point() +
+  theme_classic()
+
+```
+
+
+```{r}
+probs %>%
+  filter(ve.new.trial==44.4 ) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=parm_mean, group=repN, color=Pooling_type)) +
+  geom_line( alpha=0.1) +
+  theme_classic() +
+  ylim(-4,4)+
+  facet_wrap(prior.info~Pooling_type)
+```
+### How do probs from a single trial evolve as data accrue?
+```{r}
+probs %>%
+    left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==3 & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=pop, y=exp(parm_mean), group=interaction(repN,prior.info))) +
+  geom_line( alpha=1) +
+  theme_classic() +
+   geom_ribbon( aes(x=pop, ymin=exp(lcl), 
+                   ymax=exp(ucl)), alpha=0.1) +
+  facet_wrap(~prior.info) +
+  geom_line(aes(x=pop, y=obs_RR), color='black', lty=3)+
+  ylim(-4,4) +
+  geom_hline(yintercept=1, lty=2)
+```
+
+
+
+
+
+
 ### Summaries of the trajectories
 
 What is the probability of detecting any effect if there is (A) No effect (B) a moderate effect in line with the original trial or (C) A large effect, bigger than original trial? The shaded region shows where 90% of the estimates lie
+
 
 ```{r, fig.width=7, fig.height=7}
 probs %>%
@@ -860,7 +1036,6 @@ p1
 
 plotly::ggplotly(p1)
 ```
-
 
 same for larger effects
 
