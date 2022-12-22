@@ -556,14 +556,14 @@ ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
 
 ### Bayesian power for sequential trial with looks every 500 people
 
-Evaluate cumulative probability of hitting the (P(VE>15%)>0.95)
+Figure 6. Evaluate cumulative probability of hitting the (P(VE>15%)>0.95)
 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
-  filter(pop %in% c(500, 1000,1500, 2000)) %>%
+  filter(pop %in% c(500, 1000,1500, 2000) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_0_85>0.96),
+  mutate( eff = 1*(p_0_90>0.98),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
@@ -578,17 +578,18 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
+  ggtitle('Cumulative proportion with >98% prob that effect is >10%VE')
 ggplotly(p1a)
 p1a
 ```
-Same thresholds but evaluate after every 100 
-```{r}
+Figure S7
+
+```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
-  filter(pop %in% seq(100,2000, by=100)) %>%
+  filter(pop %in% c(500, 1000,1500, 2000) ) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_0_85>0.95),
+  mutate( eff = 1*(p_0_90>0.98),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
@@ -603,7 +604,34 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')
+  ggtitle('Cumulative proportion with >98% prob that effect is >10%VE')
+ggplotly(p1a)
+p1a
+```
+
+
+Same thresholds but evaluate after every 100 
+```{r, fig.width=6, fig.height=3}
+stopped_efficacy1 =probs %>%
+  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_0_90>0.99),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))        
+
+
+p1a <- stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+    geom_point() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >98% prob that effect is >10%VE')
 ggplotly(p1a)
 p1a
 ```
@@ -633,85 +661,12 @@ ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray') +
   ggtitle('Cumulative proportion with >95% prob that effect is >10%VE')
 
-
-stopped_efficacy2 =probs %>%
-    filter(pop %in% c(500, 1000,1500, 2000)) %>%
-  arrange(repN, ve.new.trial,prior.info ,pop) %>%
- group_by(repN,  ve.new.trial,prior.info) %>%
-
-  mutate( eff = 1*(p_0_75>0.95),
-            stop = cumsum(eff) ,
-          stop = if_else(stop>=1,1,0)) %>%
-  ungroup() %>%
-  group_by(pop, ve.new.trial,prior.info) %>%
-    summarize(prop_stopped = mean(stop))        
-
-
-p2 <- stopped_efficacy2 %>%
-    filter(pop %in% c(500, 1000,1500, 2000)) %>%
-ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
-  geom_line() +
-  facet_wrap(~ ve.new.trial) +
-  theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >95% prob that effect is >25%VE')
-
-
-stopped_efficacy3 =probs %>%
-    filter(pop %in% c(500, 1000,1500, 2000)) %>%
-  arrange(repN, ve.new.trial,prior.info ,pop) %>%
- group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_0>0.999),
-            stop = cumsum(eff) ,
-          stop = if_else(stop>=1,1,0)) %>%
-  ungroup() %>%
-  group_by(pop, ve.new.trial,prior.info) %>%
-    summarize(prop_stopped = mean(stop))        
-
-
-p3a <-stopped_efficacy3 %>%
-ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
-  geom_line() +
-  facet_wrap(~ ve.new.trial) +
-  theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >99.9% prob that effect is >0%VE')
-
-stopped_efficacy3 =probs %>%
-    filter(pop %in% c(500, 1000,1500, 2000)) %>%
-  arrange(repN, ve.new.trial,prior.info ,pop) %>%
- group_by(repN,  ve.new.trial,prior.info) %>%
-  mutate( eff = 1*(p_0>0.99),
-            stop = cumsum(eff) ,
-          stop = if_else(stop>=1,1,0)) %>%
-  ungroup() %>%
-  group_by(pop, ve.new.trial,prior.info) %>%
-    summarize(prop_stopped = mean(stop))        
-
-
-p3b <- stopped_efficacy3 %>%
-ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
-  geom_line() +
-  geom_point() +
-    facet_wrap(~ ve.new.trial) +
-  theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >99% prob that effect is >0% VE')
-
-
-
-ggplotly(p1b)
-ggplotly(p2)
-ggplotly(p3a)
-ggplotly(p3b)
-
-p1a 
 p1b
-p2
-p3a
-p3b
-
 ```
+
+
+
+
 
 Futility
 
