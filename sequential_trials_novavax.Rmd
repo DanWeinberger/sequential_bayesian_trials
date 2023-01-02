@@ -702,6 +702,107 @@ ggplot(stopped_futility, aes( x=pop, y=prop_stopped, group=prior.info, color=pri
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')
 ```
 
+
+## Adjust threshold for Type I error control
+
+for a single point
+
+```{r, fig.width=6, fig.height=3}
+
+#First figure out what cutoff should be when true VE=0 (ve.new.trial) to get 5% Type 1 error rate
+cutoff =probs %>%
+  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info,pop) %>%
+    ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+  filter(ve.new.trial==0) %>%
+  summarize(p_cutoff= quantile(p_0,probs=0.95)) %>%  #what quantile of P(VE>0%|Data) captures 95% of the trials? 
+  ungroup() %>%
+  select(p_cutoff,pop, prior.info,pop)
+  
+cutoff
+
+    #Then merge in and apply this cutoff for different VE
+stopped_efficacy1 =probs %>%
+   right_join(cutoff, by=c( 'prior.info', 'pop')) %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info,pop) %>%
+
+  mutate( eff = 1*(p_0>p_cutoff))%>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(eff))
+
+
+p1a <- stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+    geom_point() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Power and type I error withcontrol for type I error; single evaluation')
+ggplotly(p1a)
+p1a
+
+
+p1b <- cutoff %>%
+ggplot(aes( x=pop, y=p_cutoff, group=prior.info, color=prior.info)) +
+  geom_line() +
+    geom_point() +
+  theme_classic() +
+ # geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('P cutoff with control for type I error; single evaluation')
+ggplotly(p1b)
+p1b
+```
+
+or do it sequentially
+
+```{r, fig.width=6, fig.height=3}
+
+#First figure out what cutoff should be when true VE=0 (ve.new.trial) to get 5% Type 1 error rate
+cutoff =probs %>%
+  filter(pop %in% c( 500) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" ) & ve.new.trial ==0 ) %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+    ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+  filter(ve.new.trial==0) %>%
+  summarize(p_cutoff= quantile(p_0,probs=0.95)) %>%  #what quantile of P(VE>0%|Data) captures 95% of the trials? 
+  ungroup() %>%
+  select(p_cutoff, prior.info) #there is only 1 pop level here
+  
+cutoff
+
+    #Then merge in and apply this cutoff for different VE
+stopped_efficacy1 =probs %>%
+  filter(pop %in% c( 500, 1000)) %>%
+   left_join(cutoff, by=c( 'prior.info')) %>%
+  arrange(repN, ve.new.trial,prior.info ,pop) %>%
+ group_by(repN,  ve.new.trial,prior.info) %>%
+  mutate( eff = 1*(p_0>p_cutoff),
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
+  ungroup() %>%
+  group_by(pop, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(stop))
+
+
+p1a <- stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+    geom_point() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Cumulative proportion with >X% prob that effect is >0%VE')
+ggplotly(p1a)
+p1a
+```
+
+
 ### Observed data vs estimate
 
 
