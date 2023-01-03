@@ -705,7 +705,7 @@ ggplot(stopped_futility, aes( x=pop, y=prop_stopped, group=prior.info, color=pri
 
 ## Adjust threshold for Type I error control
 
-for a single point
+First consider a static trial (one look at the data at specified point)
 
 ```{r, fig.width=6, fig.height=3}
 
@@ -764,97 +764,96 @@ ave.p
 
 ```
 
-or do it sequentially
+### Or control Type I error on sequential trial
+ 
+We want to control Type I error for overall trial. i.e., by the final expected enrollee. this will lead to lower type I error and power at earlier looks. This uses a simple rule with same cutoff at all time points. There might be more efficient spending functions that have very low prob at early points and higher at later points
 
-```{r, fig.width=6, fig.height=3}
 
-start.pop <- 500
-look.interval <- 100
+First find the threshold, then apply it
 
-cutoff =probs %>%
-  filter(pop %in% start.pop & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" ) & ve.new.trial ==0 ) %>%
-  group_by(pop, ve.new.trial,prior.info) %>%
-  summarize(p_cutoff= quantile(p_0,probs=0.95)) %>%  #what quantile of P(VE>0%|Data) captures 95% of the trials? 
+Function iterates through different alpa to look at Type I error
+
+```{r}
+threshold_finder_sequential <- function(test.alpha=0.05, eval.points ){
+
+ find_alpha =probs %>%
+    filter(pop %in% eval.points & ve.new.trial==0) %>%
+  arrange(repN, prior.info ,pop) %>%
+ group_by(repN,  prior.info) %>%
+  mutate( eff = 1*(p_0>(1-test.alpha)) ,
+            stop = cumsum(eff) ,
+          stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
-  select(p_cutoff, prior.info) %>% #there is only 1 pop level here
-  mutate(p_cutoff_pop = start.pop)
-
-
-
-
-threshold_finder_sequential <- function(eval.points = seq(500,2000, by=100)){
-  
-    probs.cum = probs %>%
-        filter(pop %in% eval.points & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" ) & ve.new.trial ==0) %>%
-      arrange(prior.info, ve.new.trial, repN, pop)
-  
-   cut.list <- list()
-    
-  for(i in 1:length(eval.points)){
-      #on this first poiunt, determine cutoff to get 5% Type I error rate
-  
-      #Establish cutoff for the current trial size
-      cut_points =probs.cum %>%
-        filter(pop == eval.points[i] ) %>%
-        group_by(pop, prior.info) %>%
-        summarize(p_cutoff= quantile(p_0,probs=0.95)) %>%  #what quantile of P(VE>0%|Data) captures 95% of the trials? 
-        ungroup() %>%
-        select(p_cutoff, prior.info) %>% 
-        mutate(pop.current=eval.points[i] ) #if
-      
-      cut.list[[i]] <- cut_points
-      
-      #If stop has been triggered by previous time points and its cutoff, set to 1 for next         iteration
-      stopped_current <- probs.cum %>%
-       right_join(cut_points, by=c( 'prior.info', 'pop'='pop.current')) %>%
-        filter( pop == eval.points[i] ) %>%
-       arrange( ve.new.trial,prior.info, repN,pop ) %>%
-       group_by(ve.new.trial,prior.info, repN) %>%
-       mutate( p_cutoff = if_else(is.na(p_cutoff),999, p_cutoff), 
-         stopped = if_else(  p_0>=p_cutoff , 1, 0) #P_0 set to 1 if trial already crossed threshold
-         ) %>%
-        filter(pop==eval.points[i]) %>%
-        ungroup() %>%
-        select(prior.info, repN, stopped) 
-      
-      if(i==1){
-        probs.cum$stopped <- NA
-      }
-  
-      # when it has been stopped in current or previous times, set p_0 for next point to 1
-      probs.cum <- probs.cum %>%
-        select(-stopped) %>% #remove prev version of this
-        left_join(stopped_current, by=c('prior.info','repN')) %>%
-        mutate(p_0 = if_else(stopped==1 & pop<=eval.points[i+1], 1, p_0))
-      
-      
-      # probs.cum2 <- probs.cum %>%
-      #  # select(-stopped) %>% #remove prev version of this
-      #   left_join(stopped_current, by=c('prior.info','repN')) %>%
-      #     arrange(prior.info, repN, pop) %>%
-      #   mutate(p_0 = if_else(stopped==1 , 1, p_0))
-      
-  }
-  
-    cuts <- bind_rows(cut.list)  %>%
-      rename(pop=pop.current)
-    return(cuts)
+  group_by(pop, prior.info) %>%
+    filter(pop==eval.points[length(eval.points)] ) %>%
+       summarize(prop_stopped = mean(stop)) %>%
+   mutate(test.threshold= (1-test.alpha))
 }
+```
 
+Function applies threshold identified by threshold_finder_sequential
 
-cuts <- threshold_finder_sequential(eval.points = seq(500,2000, by=100)) 
+```{r}
+threshold_application <- function( set.eval.points){
+    seq.tresholds <- pbapply::pblapply(seq(0.001,0.05, by=0.001), threshold_finder_sequential, eval.points=set.eval.points) %>%   bind_rows()
+   
+    #find (1-alpha) that returns acceptable type 1 error  
+   min.tresholds <- seq.tresholds %>%
+    arrange(prior.info, test.threshold) %>%
+    group_by(prior.info) %>%
+    mutate(  acceptable = (prop_stopped <=0.05), rank_acceptable=cumsum(acceptable)  ) %>%
+    filter(rank_acceptable==1) %>%
+     select(prior.info,test.threshold)
+   
+   
+   stopped_efficacy1 =probs %>%
+    filter(pop %in% set.eval.points & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+     left_join(min.tresholds, by=c('prior.info')) %>%
+    arrange(repN, ve.new.trial,prior.info ,pop) %>%
+   group_by(repN,  ve.new.trial,prior.info) %>%
+    mutate( eff = 1*(p_0>test.threshold),
+              stop = cumsum(eff) ,
+            stop = if_else(stop>=1,1,0)) %>%
+    ungroup() %>%
+    group_by(pop, ve.new.trial,prior.info) %>%
+      summarize(prop_stopped = mean(stop))   
+   
+   out.obj = list('min.tresholds'=min.tresholds, 'stopped_efficacy1'=stopped_efficacy1,'seq.tresholds'=seq.tresholds)
+   return(out.obj)
+}
+```
 
+call the functions and look at output
+```{r}
 
-p1a <- cuts %>%
-ggplot(aes( x=pop, y=p_cutoff, group=prior.info, color=prior.info)) +
+seq.results <-threshold_application( set.eval.point=seq(500,2000, by=500))
+
+##Plot the outputs
+p1 <- ggplot(seq.results$seq.tresholds, aes( x=test.threshold, y=prop_stopped, group=prior.info, color=prior.info)) + 
+  geom_line() +
+  theme_classic() +
+  geom_hline(yintercept=0.05)
+p1
+
+p2 <- seq.results$stopped_efficacy1 %>%
+ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
     geom_point() +
+  facet_wrap(~ ve.new.trial) +
   theme_classic() +
-  geom_hline(yintercept = c(0.95), lty=2, col='gray')+
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >X% prob that effect is >0%VE')
-ggplotly(p1a)
-p1a
+ggplotly(p2)
+p2
+
+seq.results$min.tresholds
+
 ```
+
+
+
+
+
 
 
 ### Observed data vs estimate
