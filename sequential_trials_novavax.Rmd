@@ -427,7 +427,7 @@ What proportion of trials would have a P(benefit\>0.95\|data) at different sampl
 
 for each trial, call 0/1 based on if we have hit 0.95 at this sample size or earlier
 
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 power1 =probs %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
@@ -464,7 +464,7 @@ power1 =probs %>%
 ```
 
 
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 
 p1 <- power1 %>%
   filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)" )) %>%
@@ -481,7 +481,7 @@ ggplotly(p1)
 
 Figure S1
 
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 
 power1 %>%
 ggplot(aes( x=pop, y=prop_eff_0, group=prior.info, color=prior.info)) +
@@ -496,7 +496,7 @@ P VE \>10%
 
 
 Figure 2
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 power1 %>%
     filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info, lty=prior.info)) +
@@ -508,7 +508,7 @@ ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info, lty=prior.
 ```
 
 Figure S2
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 power1 %>%
 ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info)) +
   geom_line() +
@@ -520,8 +520,7 @@ ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info)) +
 
 P VE \>0%>0.99
 
-Figure 3
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 
 p1 <- power1 %>%
       filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
@@ -537,7 +536,7 @@ ggplotly(p1)
 ```
 
 Figure S3
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 
 power1 %>%
 ggplot(aes( x=pop, y=prop_eff_0_p99, group=prior.info, color=prior.info)) +
@@ -551,7 +550,7 @@ ggplot(aes( x=pop, y=prop_eff_0_p99, group=prior.info, color=prior.info)) +
 P Futile (VE \<30%)
 
 Figure S4
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 power1 %>%
         filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 
@@ -564,7 +563,7 @@ ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info, lty=pri
 ```
 
 Figure S4
-```{r, fig.width=4, fig.height=2}
+```{r, fig.width=5, fig.height=3}
 power1 %>%
 ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
   geom_line() +
@@ -716,6 +715,8 @@ ggplot(stopped_futility, aes( x=pop, y=prop_stopped, group=prior.info, color=pri
 ## Adjust threshold for Type I error control
 
 First consider a static trial (one look at the data at specified point)
+
+Figure 2
 
 ```{r, fig.width=6, fig.height=3}
 
@@ -1024,8 +1025,9 @@ ggplot( aes(x=pop, y=exp(parm_mean), group=interaction(repN,prior.info))) +
    geom_ribbon( aes(x=pop, ymin=exp(lcl), 
                    ymax=exp(ucl)), alpha=0.1) +
   facet_wrap(~prior.info) +
+  ylab('Rate ratio') +
   geom_line(aes(x=pop, y=obs_RR), color='black', lty=3)+
-  ylim(-4,4) +
+  ylim(0,4) +
   geom_hline(yintercept=1, lty=2)
 ```
 
