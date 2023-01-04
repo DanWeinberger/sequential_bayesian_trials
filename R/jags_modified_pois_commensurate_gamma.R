@@ -19,7 +19,7 @@ for(i in 1:2){
   beta1 ~ dnorm(delta, tau) #beta centered on delta with highly informative prior, which can become less informative if it does not match
 
   tau ~ dgamma(set_tau_shp, set_tau_rate) # skeptical variance--prevents extremes--might bias towards prior value?
-  tau2 ~ dgamma(0.01, 0.01) # gamma hyperprior from psborrow; uninformative
+  tau2 ~ dgamma(set_tau_shp, set_tau_rate) # gamma hyperprior from psborrow; uninformative
 	    
 	    #these don't do anything; they are just carried through so function works
 	    a1 <- prior_prec_log_irr
