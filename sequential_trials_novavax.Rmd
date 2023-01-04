@@ -463,6 +463,7 @@ power1 =probs %>%
               )        
 ```
 
+figure 1
 
 ```{r, fig.width=5, fig.height=3}
 
@@ -576,7 +577,7 @@ ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info)) +
 
 ### Bayesian power for sequential trial with looks every 500 people, no control of type I error
 
-Figure 6. Evaluate cumulative probability of hitting the (P(VE>15%)>0.95)
+Figure S2
 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
@@ -875,9 +876,11 @@ seq.results1$p1
 seq.results1$p2
 
 
-seq.results1$min.tresholds
+tab1 <- seq.results1$min.tresholds %>%
+  mutate(startpop=500, endpop=2000, freq_look=500)
 
 ```
+
 every 100th, starting at 500
 ```{r}
 
@@ -890,7 +893,13 @@ seq.results2$p2
 
 seq.results2$min.tresholds
 
+
+tab2 <- seq.results2$min.tresholds %>%
+  mutate(startpop=500, endpop=2000, freq_look=100) %>%
+
 ```
+
+
 Every 100th, starting at 1000
 ```{r}
 
@@ -908,43 +917,49 @@ seq.results3$min.tresholds
 Every 100th, starting at 1200
 ```{r}
 
-seq.results3 <-threshold_application( set.eval.point=seq(1200,2000, by=100))
+seq.results4 <-threshold_application( set.eval.point=seq(1200,2000, by=100))
 
-seq.results3$p1
+seq.results4$p1
 
-seq.results3$p2
+seq.results4$p2
+ggplotly(seq.results4$p2)
 
 
-seq.results3$min.tresholds
+seq.results4$min.tresholds
+
+tab4 <- seq.results4$min.tresholds %>%
+  mutate(startpop=1200, endpop=2000, freq_look=100)
+
+```
+
+Every 200th, starting at 1000
+```{r}
+
+seq.results5 <-threshold_application( set.eval.point=seq(1000,2000, by=200))
+
+seq.results5$p1
+
+seq.results5$p2
+ggplotly(seq.results5$p2)
+
+
+seq.results5$min.tresholds
+
+tab5 <- seq.results5$min.tresholds %>%
+  mutate(startpop=1000, endpop=2000, freq_look=200)
 
 ```
 
 
 ```{r}
+tab1 <- bind_rows(tab1, tab2, tab4) %>% 
+  filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
+  dplyr::arrange(prior.info, freq_look, startpop)
 
-seq.results <-threshold_application( set.eval.point=seq(1000,2000, by=100))
-
-##Plot the outputs
-p1 <- ggplot(seq.results$seq.tresholds, aes( x=test.threshold, y=prop_stopped, group=prior.info, color=prior.info)) + 
-  geom_line() +
-  theme_classic() +
-  geom_hline(yintercept=0.05)
-p1
-
-p2 <- seq.results$stopped_efficacy1 %>%
-ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
-  geom_line() +
-    geom_point() +
-  facet_wrap(~ ve.new.trial) +
-  theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Cumulative proportion with >X% prob that effect is >0%VE')
-ggplotly(p2)
-p2
-
-seq.results$min.tresholds
+write.csv(tab1, './Results/Table_sequential_probs.csv')
 
 ```
+
 
 
 
@@ -1014,6 +1029,9 @@ ggplot( aes(x=pop, y=parm_mean, group=repN, color=Pooling_type)) +
 
 
 ### How do probs from a single trial evolve as data accrue?
+
+Figure 3
+
 ```{r}
 probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
