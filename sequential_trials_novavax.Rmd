@@ -345,7 +345,7 @@ mod5 <- mod.ds1 %>%
  do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_uniform, prior.sd.upper=2)) %>%
   collect() %>%
   ungroup() %>%
-  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); U(0,2)')
+  mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); tau~U(0,2)')
 
 mod6 <- mod.ds1 %>%
   group_by(repN,pop,ve.new.trial) %>%
@@ -396,7 +396,14 @@ all.mods <- readRDS( './Results/all.mods_novavax.rds') %>%
 probs <- all.mods %>% 
   group_by(repN, pop, ve.new.trial,Pooling_type,prior.info) %>%
   filter(parm=='beta1')  %>%
-  ungroup()
+  ungroup() %>%
+  mutate(prior.info = if_else(prior.info=="N(0,1.821^2)", "N(0,3.32)", prior.info ),
+         prior.info = if_else(prior.info=="N(u1,tau); IG(3,2)", "N(u1,tau2); tau2~IG(3,2)", prior.info ),
+         prior.info = if_else(prior.info=="N(u1,tau); IG(0.01,0.01)", "N(u1,tau2); tau2~IG(0.01,0.01)", prior.info ),
+         prior.info = if_else(prior.info=="N(u1,tau); U(0,2)", "N(u1,tau); tau~U(0,2)", prior.info ),
+         prior.info = if_else(prior.info=="N(u1,tau); U(0,100)", "N(u1,tau); tau~U(0,100)", prior.info ),
+         prior.info = if_else(prior.info=="N(u1,tau);t(0,1,1)T(0,)", "N(u1,tau);tau~t(0,1,1)T(0,)", prior.info )
+         )
 ```
 
 ### Trajectories of P(benefit) for a subset of trials
@@ -460,12 +467,13 @@ power1 =probs %>%
 ```{r, fig.width=4, fig.height=2}
 
 p1 <- power1 %>%
-  filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)" )) %>%
 ggplot(aes( x=pop, y=prop_eff_0, group=prior.info, color=prior.info, lty=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ylab('Proportion') +
   ggtitle('Proportion of trials with >95% probability that effect is >0% VE')
 p1
 ggplotly(p1)
@@ -490,7 +498,7 @@ P VE \>10%
 Figure 2
 ```{r, fig.width=4, fig.height=2}
 power1 %>%
-    filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+    filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 ggplot(aes( x=pop, y=prop_eff_10, group=prior.info, color=prior.info, lty=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
@@ -516,7 +524,7 @@ Figure 3
 ```{r, fig.width=4, fig.height=2}
 
 p1 <- power1 %>%
-      filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+      filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 ggplot(aes( x=pop, y=prop_eff_0_p99, group=prior.info, color=prior.info, lty=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
@@ -545,7 +553,7 @@ P Futile (VE \<30%)
 Figure S4
 ```{r, fig.width=4, fig.height=2}
 power1 %>%
-        filter(prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+        filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 
 ggplot(aes( x=pop, y=prop_futile_30, group=prior.info, color=prior.info, lty=prior.info)) +
   geom_line() +
@@ -573,7 +581,7 @@ Figure 6. Evaluate cumulative probability of hitting the (P(VE>15%)>0.95)
 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
-  filter(pop %in% c(500, 1000,1500, 2000) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(pop %in% c(500, 1000,1500, 2000) & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_0>0.95),
@@ -626,7 +634,7 @@ p1a
 Same thresholds but evaluate after every 100 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
-  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_0_90>0.99),
@@ -738,7 +746,7 @@ stopped_efficacy1 =probs %>%
 
 
 p1a <- stopped_efficacy1 %>%
-  filter(  prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(  prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
  #   geom_point() +
@@ -751,7 +759,7 @@ p1a
 
 
 p1b <- stopped_efficacy1 %>%
-  #filter(  prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  #filter(  prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
 ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
  #   geom_point() +
@@ -823,7 +831,7 @@ threshold_application <- function( set.eval.points){
    
    
    stopped_efficacy1 =probs %>%
-    filter(pop %in% set.eval.points & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+    filter(pop %in% set.eval.points & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
      left_join(min.tresholds, by=c('prior.info')) %>%
     arrange(repN, ve.new.trial,prior.info ,pop) %>%
    group_by(repN,  ve.new.trial,prior.info) %>%
@@ -972,7 +980,7 @@ obs_exp_data %>%
   theme_classic()
 
 obs_exp_data %>%
-  filter(ve.new.trial==44.4 & prior.info=="N(u1,tau); IG(0.01,0.01)") %>%
+  filter(ve.new.trial==44.4 & prior.info=="N(u1,tau2); tau2~IG(0.01,0.01)") %>%
   ggplot(aes(x=log(obs_RR), y=parm_mean)) +
   geom_point() +
   theme_classic()
@@ -983,7 +991,7 @@ Probability of success as a function of number of events
 
 ```{r}
 obs_exp_data %>%
-  filter(ve.new.trial==44.4 & prior.info=="N(u1,tau); IG(0.01,0.01)") %>%
+  filter(ve.new.trial==44.4 & prior.info=="N(u1,tau2); tau2~IG(0.01,0.01)") %>%
   mutate(tot_events=placebo+vax) %>%
    ggplot(aes(x=tot_events, y=p_0)) +
   geom_point() +
@@ -1008,7 +1016,7 @@ ggplot( aes(x=pop, y=parm_mean, group=repN, color=Pooling_type)) +
 ```{r}
 probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
-  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==3 & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==3 & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
   mutate(Pooling_type = as.factor(Pooling_type)) %>%
 ggplot( aes(x=pop, y=exp(parm_mean), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
@@ -1025,7 +1033,7 @@ ggplot( aes(x=pop, y=exp(parm_mean), group=interaction(repN,prior.info))) +
 ## Average sample size before stopping
 ```{r}
 stopped_pop1 =probs %>%
-  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_0_90>0.99),
@@ -1061,7 +1069,7 @@ If not using historical data, need to have a probability cutoff of 0.975 to cont
 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
-  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_0_90>0.975),
@@ -1087,7 +1095,7 @@ p1a
 In contrast, if controlling type 1 error for informative prior, need to increase P to 0.99, and with IG(0.01,0.01) would need 1900 people, so very little efficiency gain
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
-  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,1.821^2)", "N(u1,tau); IG(0.01,0.01)", "N(u1,tau); U(0,2)" )) %>%
+  filter(pop %in% seq(500, 2000, by=100) & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
   arrange(repN, ve.new.trial,prior.info ,pop) %>%
  group_by(repN,  ve.new.trial,prior.info) %>%
   mutate( eff = 1*(p_0_90>0.99),

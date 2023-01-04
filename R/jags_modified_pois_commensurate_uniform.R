@@ -20,7 +20,7 @@ for(i in 1:2){
 
   tau.sd ~ dunif(0, sd.upper)
   
-  tau2.sd ~ dunif(0, 100) #yields very flat prior on intercept
+  tau2.sd ~ dunif(0, sd.upper) #yields very flat prior on intercept
 
   tau <- 1/tau.sd^2
   
