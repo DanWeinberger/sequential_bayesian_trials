@@ -146,8 +146,8 @@ Novavax had 3045 vaccinees and 1581 controls; 2.4% in placebo group had primary 
 ```{r}
 set.seed(123)
 
-sim1 <- sim.data.func(N.vax = 10000,
-                     N.control = 10000,
+sim1 <- sim.data.func(N.vax = 2500,
+                     N.control = 2500,
                      rate.control = set.rate.control,
                      ve.new.trial=set.ve.new.trial.agree,
                      n.sim=N.sim)
@@ -159,8 +159,8 @@ sim1 <- sim.data.func(N.vax = 10000,
 ```{r}
 set.seed(456)
 
-sim2 <- sim.data.func(N.vax = 10000,
-                     N.control = 10000,
+sim2 <- sim.data.func(N.vax = 2500,
+                     N.control = 2500,
                      rate.control = set.rate.control,
                      ve.new.trial=0,
                      n.sim=N.sim)
@@ -171,8 +171,8 @@ sim2 <- sim.data.func(N.vax = 10000,
 ```{r}
 set.seed(456)
 
-sim3 <- sim.data.func(N.vax = 10000,
-                     N.control = 10000,
+sim3 <- sim.data.func(N.vax = 2500,
+                     N.control = 2500,
                      rate.control = set.rate.control,
                      ve.new.trial=set.ve.new.trial.higher,
                      n.sim=N.sim)
@@ -184,7 +184,7 @@ How many vaccinees are enrolled?
 
 ```{r}
 
-eval_points = seq(from=100, to=2000, by=100)
+eval_points = seq(from=50, to=500, by=50)
 
 ```
 
@@ -195,17 +195,30 @@ generate combined dataset for modeling--need to fill 0s if stratum not represent
 ```{r}
 mod.ds1 <- lapply(eval_points , function(set.pop){
     ds1 <- bind_rows(sim1, sim2, sim3) %>%
-        group_by(repN,ve.new.trial, treatment) %>%
-      mutate(pop=set.pop) %>%
-      filter( ((ID<pop &treatment=='placebo')|(ID<pop &treatment=='vax') )) %>%
-          summarize(N_cases= n(), pop=mean(pop)) %>%
-      ungroup() 
+      arrange(repN, ve.new.trial, ID) %>%
+        group_by(repN,ve.new.trial) %>%
+      #look at highest ID value in placebo or vax group that needs to be reached 2*max gives pop
+        mutate(eventN = row_number(),  N_event_look=set.pop) %>%
+      filter( eventN <= N_event_look ) %>%  #if event is before or equal to look time, keep
+      mutate(pop_grp=max(ID)) %>%
+      ungroup() %>%
+    group_by(repN,ve.new.trial,treatment ) %>%
+          summarize(N_cases= n(), N_event_look=mean(N_event_look), pop_grp=mean(pop_grp) ) %>%
+      ungroup() %>%
+      group_by(repN,ve.new.trial) %>%
+      mutate(pop = sum(pop_grp))
     
 return(ds1)
     }) %>%
   bind_rows() %>%
-  tidyr::complete(repN,ve.new.trial, treatment , pop,   fill=list(N_cases=0)) %>%
-    mutate( vax=if_else(treatment=='vax',1,0)) 
+  tidyr::complete(repN,ve.new.trial, treatment , N_event_look,   fill=list(N_cases=0)) %>%
+    mutate( vax=if_else(treatment=='vax',1,0)) %>%
+  arrange(repN,ve.new.trial, N_event_look,treatment ) %>%
+  filter( N_event_look<=150) %>%
+  group_by(repN,ve.new.trial,N_event_look) %>%
+  mutate(pop= if_else(is.na(pop),max(pop, na.rm=T),pop),
+           pop_grp= if_else(is.na(pop_grp),max(pop_grp, na.rm=T), pop_grp )
+         ) #this fixes issue where a subgroup has 0 cases
 
 ```
 
@@ -213,8 +226,8 @@ Accrual of cases in the 500 trials
 
 ```{r}
 mod.ds1 %>%
-  filter(ve.new.trial==44.4) %>%
-  ggplot(aes(x=pop, y=N_cases, group=interaction(repN, treatment), color=treatment))+
+  filter(ve.new.trial==44.4 ) %>%
+  ggplot(aes(x=N_event_look, y=N_cases, group=interaction(repN, treatment), color=treatment))+
   geom_line(alpha=0.1) +
   theme_classic()
 ```
@@ -225,7 +238,7 @@ Prior selection based on: <https://hbiostat.org/proj/covid19/bayesplan.html>
 ptm <- proc.time()
 
 mod1 <- mod.ds1 %>%
-  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  filter( repN==3  & N_event_look==100 &  ve.new.trial==0 ) %>%
   call_jags( prior.mean=0, prior.prec=1/1.821^2) %>%
   filter(parm=='beta1')
 
@@ -233,18 +246,18 @@ proc.time() - ptm
 
 
 mod2 <- mod.ds1 %>%
-  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  filter( repN==3  & N_event_look==100 &  ve.new.trial==0 ) %>%
   call_jags( prior.mean=0, prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma) %>%
   filter(parm=='beta1')
 
 mod3 <- mod.ds1 %>%
-  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  filter( repN==3  & N_event_look==100 &  ve.new.trial==0 ) %>%
   call_jags( prior.sd.upper=100, model.select=model_string_commensurate_uniform) %>%
   filter(parm=='beta1')
 
 
 mod4 <- mod.ds1 %>%
-  filter( repN==3  & pop==1000 &  ve.new.trial==0 ) %>%
+  filter( repN==3  & N_event_look==100 &  ve.new.trial==0 ) %>%
   call_jags( prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_half_cauchy) %>%
   filter(parm=='beta1')
 
@@ -258,23 +271,23 @@ Check dataset--shows all strata have 2 obs
 ```{r}
 
 mod.ds1 %>%
-  group_by(repN, ve.new.trial, pop) %>%
+  group_by(repN, ve.new.trial, N_event_look, pop) %>%
   summarize(n_obs=n()) %>%
   ungroup() %>%
   summarize(n_obs_range =range(n_obs))
 
 mod.ds1.c <- mod.ds1 %>%
-  reshape2::dcast(repN+ve.new.trial + pop ~ treatment, value.var='N_cases') %>%
+  reshape2::dcast(repN+ve.new.trial + N_event_look +pop~ treatment, value.var='N_cases') %>%
   mutate(N_events =placebo+vax, raw_RR= vax/placebo)
 
 mod.ds1.c %>%
-  filter(repN<500 & ve.new.trial==44.4 &N_events>20) %>%
-ggplot(aes(x=N_events, y=raw_RR, group=repN))+
+  filter(repN<500 & ve.new.trial==44.4 ) %>%
+ggplot(aes(x=N_event_look, y=raw_RR, group=repN))+
   geom_line(alpha=0.1)+
   theme_classic()
 
 mod.ds1.c %>%
-  filter(repN<500 & ve.new.trial==44.4&N_events>20) %>%
+  filter(repN<500 & ve.new.trial==44.4) %>%
 ggplot(aes(x=pop, y=raw_RR, group=repN))+
   geom_line(alpha=0.1)+
   theme_classic()

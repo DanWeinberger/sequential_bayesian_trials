@@ -5,7 +5,7 @@ call_jags <- function(sim.ds, prior.mean=999, set_tau_shp=999, set_tau_rate=999,
   #Select replicate from the data generated in sim.data.R
   vax.status=sim.ds$vax
 
-  pop=sim.ds$pop
+  pop=sim.ds$pop_grp
   
   N_cases=sim.ds$N_cases
 
