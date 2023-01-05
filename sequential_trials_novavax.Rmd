@@ -264,7 +264,20 @@ mod.ds1 %>%
   summarize(n_obs_range =range(n_obs))
 
 mod.ds1.c <- mod.ds1 %>%
-  reshape2::dcast(repN+ve.new.trial + pop ~ treatment, value.var='N_cases')
+  reshape2::dcast(repN+ve.new.trial + pop ~ treatment, value.var='N_cases') %>%
+  mutate(N_events =placebo+vax, raw_RR= vax/placebo)
+
+mod.ds1.c %>%
+  filter(repN<500 & ve.new.trial==44.4 &N_events>20) %>%
+ggplot(aes(x=N_events, y=raw_RR, group=repN))+
+  geom_line(alpha=0.1)+
+  theme_classic()
+
+mod.ds1.c %>%
+  filter(repN<500 & ve.new.trial==44.4&N_events>20) %>%
+ggplot(aes(x=pop, y=raw_RR, group=repN))+
+  geom_line(alpha=0.1)+
+  theme_classic()
 ```
 
 Call all models for both simulated datasets. Use parallel processing; takes \~60 min to run on 7 cores
@@ -974,6 +987,23 @@ Observed
 ```{r}
  obs_data <- mod.ds1.c %>%
   mutate( obs_RR = vax/placebo ) 
+```
+
+```{r}
+obs_data %>%
+  filter(ve.new.trial==44.4)  %>%
+  ggplot( aes(x=N_events, y=obs_RR, group=repN)) +
+  geom_line(alpha=0.1) +
+  theme_classic() +
+  ylim(0.2, 2)
+```
+
+```{r}
+obs_data %>%
+  filter(ve.new.trial==44.4)  %>%
+  ggplot( aes(x=N_events, y=pop, group=repN)) +
+  geom_point(alpha=0.1) +
+  theme_classic() 
 ```
 
 ```{r}
