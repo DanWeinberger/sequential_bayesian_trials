@@ -184,7 +184,7 @@ How many vaccinees are enrolled?
 
 ```{r}
 
-eval_points = seq(from=50, to=500, by=50)
+eval_points = c(10,20,30,40,seq(from=50, to=500, by=50))
 
 ```
 
@@ -317,7 +317,7 @@ cluster_copy(cluster1, "model_string_commensurate_half_cauchy")
 #baseline model without pooling, uninformative prior
 
 mod0 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(., prior.mean=0,  prior.prec=1e-4 )) %>%
   collect() %>%
@@ -326,7 +326,7 @@ mod0 <- mod.ds1 %>%
 
 #baseline model without pooling
 mod1 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(. , model.select=model_string_basic_pois, prior.mean=0,  prior.prec=1/1.821^2 ) ) %>%
   collect() %>%
@@ -338,7 +338,7 @@ proc.time() - ptm
 ptm <- proc.time()
 #Commensurate prior pooling
 mod3 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma, set_tau_shp=3, set_tau_rate=2)) %>%
   collect() %>%
@@ -349,7 +349,7 @@ proc.time() - ptm
 
 #Commensurate prior pooling
 mod4 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma, set_tau_shp=1, set_tau_rate=1)) %>%
   collect() %>%
@@ -358,7 +358,7 @@ mod4 <- mod.ds1 %>%
 
 #Commensurate prior pooling
 mod4 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_gamma, set_tau_shp=0.01, set_tau_rate=0.01)) %>%
   collect() %>%
@@ -366,7 +366,7 @@ mod4 <- mod.ds1 %>%
   mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); IG(0.01,0.01)')
 
 mod5 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_uniform, prior.sd.upper=2)) %>%
   collect() %>%
@@ -374,7 +374,7 @@ mod5 <- mod.ds1 %>%
   mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); tau~U(0,2)')
 
 mod6 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(., prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_uniform, prior.sd.upper=100)) %>%
   collect() %>%
@@ -382,7 +382,7 @@ mod6 <- mod.ds1 %>%
   mutate(Pooling_type='Commensurate', prior.info= 'N(u1,tau); U(0,100)')
 
 mod7 <- mod.ds1 %>%
-  group_by(repN,pop,ve.new.trial) %>%
+  group_by(repN,N_event_look,ve.new.trial) %>%
   multidplyr::partition(cluster=cluster1)  %>%
  do(call_jags(. , prior.mean=prior.data$log_irr.obs[1], prior.prec=1/1.821^2, model.select=model_string_commensurate_half_cauchy)) %>%
   collect() %>%

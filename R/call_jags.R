@@ -1,12 +1,12 @@
 call_jags <- function(sim.ds, prior.mean=999, set_tau_shp=999, set_tau_rate=999, prior.prec=999, prior.sd.upper=999, model.select=model_string_basic_pois){
 
 ##See 3.3 for section on selecting priors: https://hbiostat.org/proj/covid19/bayesplan.html
+ # ptm <- proc.time()
   
   #Select replicate from the data generated in sim.data.R
   vax.status=sim.ds$vax
 
   pop=sim.ds$pop_grp
-  
   N_cases=sim.ds$N_cases
 
 
@@ -50,6 +50,10 @@ posterior_samples<-coda.samples(model_jags,
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
+##proc.time() - ptm
+
+#ptm <- proc.time()
+
 post_means<-apply(posterior_samples.all, 2, mean)
 sample.labs<-names(post_means)
 ci<-t(hdi(posterior_samples.all, credMass = 0.95))
@@ -58,19 +62,25 @@ ci<-matrix(ci, ncol=2)
 ci975<-t(hdi(posterior_samples.all, credMass = 0.975))
 ci975<-matrix(ci975, ncol=2)
 
+#proc.time() - ptm
+
+#ptm <- proc.time()
 
 #criteria from Frank Harrell: https://hbiostat.org/proj/covid19/bayesplan.html
 p_0 <- mean(exp(posterior_samples.all[,'beta1']) < 1)
-p_0_95 <- mean(exp(posterior_samples.all[,'beta1']) < 0.95)
-p_0_90 <- mean(exp(posterior_samples.all[,'beta1']) < 0.90)
-p_0_85 <- mean(exp(posterior_samples.all[,'beta1']) < 0.85)
+#p_0_95 <- mean(exp(posterior_samples.all[,'beta1']) < 0.95)
+#p_0_90 <- mean(exp(posterior_samples.all[,'beta1']) < 0.90)
+#p_0_85 <- mean(exp(posterior_samples.all[,'beta1']) < 0.85)
 p_0_80 <- mean(exp(posterior_samples.all[,'beta1']) < 0.80)
 p_0_75 <- mean(exp(posterior_samples.all[,'beta1']) < 0.75)
 p_0_70 <- mean(exp(posterior_samples.all[,'beta1']) < 0.70)
 
-p_harm_o1 <- mean(exp(posterior_samples.all[,'beta1']) >1)
+#p_harm_o1 <- mean(exp(posterior_samples.all[,'beta1']) >1)
 #p_similar_0_8__1_25 <- mean(exp(posterior_samples.all[,'beta1']) <1.30 & exp(posterior_samples.all[,'beta1']) >0.8)
-p_futile <- mean(exp(posterior_samples.all[,'beta1']) > 0.7 ) #if VE<30%, it is futile
+#p_futile <- mean(exp(posterior_samples.all[,'beta1']) > 0.7 ) #if VE<30%, it is futile
+
+#proc.time() - ptm
+#ptm <- proc.time()
 
 row.names(ci)<-sample.labs
 #post_means<-sprintf("%.1f",round(post_means,1))
@@ -78,28 +88,21 @@ names(post_means)<-sample.labs
 
 post_var <- apply(posterior_samples.all,2, var)
 
-combined <- cbind.data.frame(post_means, 
-                             ci ,
+
+combined <- tibble(post_means, ci ,
                              ci975,
                              post_var, 
-                             names(post_means),
-                             'repN'=unique(sim.ds$repN),
-                             'pop'=unique(sim.ds$pop),
-                             've.new.trial'=unique(sim.ds$ve.new.trial),
-                           'p_0'=p_0,
-                           'p_0_95'=p_0_95,
-                           'p_0_90'=p_0_90,
-                           'p_0_85'=p_0_85,
-                           'p_0_80'=p_0_80,
-                           'p_0_75'=p_0_75,
-                           'p_0_70'=p_0_70,
-                           'p_harm_o1' =p_harm_o1,
-                           'p_futile'= p_futile
-
+                             parm=names(post_means),
+                             repN=unique(sim.ds$repN),
+                             pop=unique(sim.ds$pop),
+                             N_event_look=unique(sim.ds$N_event_look),
+                             ve.new.trial=unique(sim.ds$ve.new.trial),
+                             p_0=p_0,
+                             p_0_80=p_0_80,
+                             p_0_75=p_0_75,
+                             p_0_70=p_0_70,
 )
-names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var',   'parm', 'repN','pop','ve.new.trial',
-                     'p_0','p_0_95','p_0_90','p_0_85', 'p_0_80','p_0_75', 'p_0_70','p_harm_o1','p_futile')
-
+#proc.time() - ptm
 
 return(combined)
 }
