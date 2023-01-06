@@ -429,7 +429,7 @@ This shows how the probabilities evolve as more data accrue. This shows probabil
 
 ```{r}
 probs %>%
-  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN %in% c(1:500)) %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN %in% c(1:20)) %>%
   mutate(prior.info = as.factor(prior.info)) %>%
 ggplot( aes(x=pop, y=p_0, group=interaction(repN,prior.info), color=Pooling_type)) +
   geom_line( alpha=0.1) +
@@ -437,7 +437,7 @@ ggplot( aes(x=pop, y=p_0, group=interaction(repN,prior.info), color=Pooling_type
   facet_wrap(~prior.info)
 
 probs %>%
-  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN %in% c(1:500)) %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN %in% c(1:20)) %>%
   mutate(prior.info = as.factor(prior.info)) %>%
 ggplot( aes(x=N_event_look, y=p_0, group=interaction(repN,prior.info), color=Pooling_type)) +
   geom_line( alpha=0.1) +
@@ -558,7 +558,7 @@ Figure 2
 
 #First figure out what cutoff should be when true VE=0 (ve.new.trial) to get 5% Type 1 error rate
 cutoff =probs %>%
-  filter(N_event_look %in% c(10,20,30,40,50,100,150)) %>%
+ # filter(N_event_look %in% c(10,20,30,40,50,100,150)) %>%
   arrange(repN, ve.new.trial,prior.info ,N_event_look) %>%
  group_by(repN,  ve.new.trial,prior.info,N_event_look) %>%
     ungroup() %>%
@@ -596,8 +596,7 @@ p1a
 
 
 p1b <- stopped_efficacy1 %>%
-  #filter(  prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
-ggplot(aes( x=pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+ggplot(aes( x=N_event_look, y=prop_stopped, group=prior.info, color=prior.info)) +
   geom_line() +
  #   geom_point() +
   facet_wrap(~ ve.new.trial) +
