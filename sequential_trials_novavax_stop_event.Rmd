@@ -473,24 +473,25 @@ power1 =probs %>%
               )        
 ```
 
-figure 1
+figure 1a
 
 ```{r, fig.width=5, fig.height=3}
 
-p1 <- power1 %>%
+fig1a <- power1 %>%
   filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)" )) %>%
 ggplot(aes( x=N_event_look, y=prop_eff_0, group=prior.info, color=prior.info, lty=prior.info)) +
   geom_line() +
   facet_wrap(~ ve.new.trial) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ylab('Proportion') +
-  ggtitle('Proportion of trials with >95% probability that effect is >0% VE')
-p1
-ggplotly(p1)
+  #ggtitle('Proportion of trials with >95% probability that effect is >0% VE')+
+    ylab('Proportion') +
+  xlab('Events(N)')
+fig1a
+ggplotly(fig1a)
 ```
 
-Figure S1
+Figure S1: same plot but showing all priors
 
 ```{r, fig.width=5, fig.height=3}
 
@@ -504,6 +505,117 @@ ggplot(aes( x=N_event_look, y=prop_eff_0, group=prior.info, color=prior.info)) +
 
     geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Proportion of trials with >95% probability that effect is >0% VE')
+```
+
+### Adjust threshold for Type I error control: static trial
+
+First consider a static trial (one look at the data at specified point)
+
+Figure 1b
+
+```{r, fig.width=6, fig.height=3}
+
+#First figure out what cutoff should be when true VE=0 (ve.new.trial) to get 5% Type 1 error rate
+cutoff =probs %>%
+ # filter(N_event_look %in% c(10,20,30,40,50,100,150)) %>%
+  arrange(repN, ve.new.trial,prior.info ,N_event_look) %>%
+ group_by(repN,  ve.new.trial,prior.info,N_event_look) %>%
+    ungroup() %>%
+  group_by(N_event_look, ve.new.trial,prior.info) %>%
+  filter(ve.new.trial==0) %>%
+  summarize(p_cutoff= quantile(p_0,probs=0.95)) %>%  #what quantile of P(VE>0%|Data) captures 95% of the trials? 
+  ungroup() %>%
+  select(p_cutoff,N_event_look, prior.info,N_event_look)
+  
+cutoff
+
+    #Then merge in and apply this cutoff for different VE
+stopped_efficacy1 =probs %>%
+   right_join(cutoff, by=c( 'prior.info', 'N_event_look')) %>%
+  arrange(repN, ve.new.trial,prior.info ,N_event_look) %>%
+ group_by(repN,  ve.new.trial,prior.info,N_event_look) %>%
+
+  mutate( eff = 1*(p_0>p_cutoff))%>%
+  ungroup() %>%
+  group_by(N_event_look, ve.new.trial,prior.info) %>%
+    summarize(prop_stopped = mean(eff))
+
+
+fig1b <- stopped_efficacy1 %>%
+  filter(  prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
+ggplot(aes( x=N_event_look, y=prop_stopped, group=prior.info, color=prior.info,lty=prior.info)) +
+  geom_line() +
+ #   geom_point() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  #ggtitle('Power and type I error with control for type I error, single evaluation')
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray') +
+  xlab('Events(N)') +
+  ylab('Proportion')
+ggplotly(fig1b)
+fig1b
+
+
+p1b <- stopped_efficacy1 %>%
+ggplot(aes( x=N_event_look, y=prop_stopped, group=prior.info, color=prior.info)) +
+  geom_line() +
+ #   geom_point() +
+  facet_wrap(~ ve.new.trial) +
+  theme_classic() +
+  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
+  ggtitle('Power and type I error with control for type I error, single evaluation')
+ggplotly(p1b)
+p1b
+
+
+p1c <- cutoff %>%
+ggplot(aes( x=N_event_look, y=p_cutoff, group=prior.info, color=prior.info)) +
+  geom_line() +
+   # geom_point() +
+  theme_classic() +
+  geom_hline(yintercept = c(0.95), lty=2, col='gray')+
+  ggtitle('P cutoff with control for type I error; single evaluation')
+ggplotly(p1c)
+p1c
+
+ave.p <- cutoff %>%
+  group_by(prior.info) %>%
+  summarize(p_cutoff=mean(p_cutoff))
+ave.p
+
+```
+
+FIGURE 1 combined A and B
+
+```{r, fig.width=5, fig.height=4}
+fig1a / 
+  fig1b +  
+  plot_annotation(tag_levels = 'A')
+```
+
+### How do probs from a single trial evolve as data accrue?
+
+Figure 2
+
+```{r, fig.width=5, fig.height=2}
+p1 <-probs %>%
+    left_join(obs_data, by=c('repN','N_event_look','ve.new.trial')) %>%
+  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
+  mutate(Pooling_type = as.factor(Pooling_type)) %>%
+ggplot( aes(x=N_event_look, y=exp(post_means), group=interaction(repN,prior.info))) +
+  geom_line( alpha=1) +
+  theme_classic() +
+   geom_ribbon( aes(x=N_event_look, ymin=exp(ci[,1]), 
+                   ymax=exp(ci[,2])), alpha=0.1) +
+  facet_wrap(~prior.info) +
+  ylab('Rate ratio') +
+  geom_line(aes(x=N_event_look, y=obs_RR), color='black', lty=3)+
+  ylim(0,2.5) +
+  xlab('Total accrued cases') +
+  geom_hline(yintercept=1, lty=2)
+
+p1
+ggplotly(p1)
 ```
 
 
@@ -536,86 +648,9 @@ ggplotly(p1a)
 p1a
 ```
 
-
-## Adjust threshold for Type I error control
-
-First consider a static trial (one look at the data at specified point)
-
-Figure 2
-
-```{r, fig.width=6, fig.height=3}
-
-#First figure out what cutoff should be when true VE=0 (ve.new.trial) to get 5% Type 1 error rate
-cutoff =probs %>%
- # filter(N_event_look %in% c(10,20,30,40,50,100,150)) %>%
-  arrange(repN, ve.new.trial,prior.info ,N_event_look) %>%
- group_by(repN,  ve.new.trial,prior.info,N_event_look) %>%
-    ungroup() %>%
-  group_by(N_event_look, ve.new.trial,prior.info) %>%
-  filter(ve.new.trial==0) %>%
-  summarize(p_cutoff= quantile(p_0,probs=0.95)) %>%  #what quantile of P(VE>0%|Data) captures 95% of the trials? 
-  ungroup() %>%
-  select(p_cutoff,N_event_look, prior.info,N_event_look)
-  
-cutoff
-
-    #Then merge in and apply this cutoff for different VE
-stopped_efficacy1 =probs %>%
-   right_join(cutoff, by=c( 'prior.info', 'N_event_look')) %>%
-  arrange(repN, ve.new.trial,prior.info ,N_event_look) %>%
- group_by(repN,  ve.new.trial,prior.info,N_event_look) %>%
-
-  mutate( eff = 1*(p_0>p_cutoff))%>%
-  ungroup() %>%
-  group_by(N_event_look, ve.new.trial,prior.info) %>%
-    summarize(prop_stopped = mean(eff))
-
-
-p1a <- stopped_efficacy1 %>%
-  filter(  prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
-ggplot(aes( x=N_event_look, y=prop_stopped, group=prior.info, color=prior.info)) +
-  geom_line() +
- #   geom_point() +
-  facet_wrap(~ ve.new.trial) +
-  theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Power and type I error with control for type I error, single evaluation')
-ggplotly(p1a)
-p1a
-
-
-p1b <- stopped_efficacy1 %>%
-ggplot(aes( x=N_event_look, y=prop_stopped, group=prior.info, color=prior.info)) +
-  geom_line() +
- #   geom_point() +
-  facet_wrap(~ ve.new.trial) +
-  theme_classic() +
-  geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
-  ggtitle('Power and type I error with control for type I error, single evaluation')
-ggplotly(p1b)
-p1b
-
-
-p1c <- cutoff %>%
-ggplot(aes( x=N_event_look, y=p_cutoff, group=prior.info, color=prior.info)) +
-  geom_line() +
-   # geom_point() +
-  theme_classic() +
-  geom_hline(yintercept = c(0.95), lty=2, col='gray')+
-  ggtitle('P cutoff with control for type I error; single evaluation')
-ggplotly(p1c)
-p1c
-
-ave.p <- cutoff %>%
-  group_by(prior.info) %>%
-  summarize(p_cutoff=mean(p_cutoff))
-ave.p
-
-```
-
 ### Or control Type I error on sequential trial
  
-We want to control Type I error for overall trial. i.e., by the final expected data look. this will lead to lower type I error and power at earlier looks. This uses a simple rule with same cutoff at all time points. There might be more efficient spending functions that have very low prob at early points and higher at later points
+We want to control Type I error for overall trial. i.e., by the final expected data look. this will lead to lower type I error and power at earlier looks. This uses a simple rule with same cutoff at all time points. There might be more efficient spending functions that have very low prob at early points and higher at later points. or could have a less stringent cutoff at final look only, as n Pfizer COVID vax trial.
 
 
 First find the threshold, then apply it
@@ -718,35 +753,14 @@ seq.results1$p1
 
 seq.results1$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
-p1.cum <- seq.results1$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
+fig3a <- seq.results1$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
 p1.cum
 ggplotly(p1.cum)
-p1.hist <-seq.results1$p3
+fig4a <-seq.results1$p3
 
 tab1 <- seq.results1$min.tresholds %>%
   mutate(startpop=50, endpop=150, freq_look=50)
-
-```
-
-every 20, starting at 50 events
-```{r, fig.width=5, fig.height=3}
-
-seq.results2 <-threshold_application( set.eval.points=seq(50,150, by=20))
-
-seq.results2$p1
-
-seq.results2$p2+xlim(10, 150) +ylab('Proportion of trials that have stopped')
-
-
-
-seq.results2$min.tresholds
-
-p2.hist <-seq.results2$p3
-
-
-tab2 <- seq.results2$min.tresholds %>%
-  mutate(startpop=50, endpop=150, freq_look=20) 
 
 ```
 
@@ -760,14 +774,14 @@ seq.results3$p1
 
 seq.results3$p2+xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
-p3.cum <- seq.results3$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
+fig3b <- seq.results3$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
 p3.cum
 ggplotly(p3.cum)
 
 seq.results3$p3
 
-p3.hist <-seq.results3$p3
+fig4b <-seq.results3$p3
 
 seq.results3$min.tresholds
 
@@ -776,25 +790,6 @@ tab3 <- seq.results3$min.tresholds %>%
 
 ```
 
-Every 10th, starting at 70
-```{r, fig.width=5, fig.height=3}
-
-seq.results4 <-threshold_application( set.eval.points=seq(70,150, by=10))
-
-seq.results4$p1
-
-seq.results4$p2
-
-p4.hist <-seq.results4$p3
-
-
-seq.results4$min.tresholds
-
-tab4 <- seq.results4$min.tresholds %>%
-  mutate(startpop=70, endpop=150, freq_look=10) 
-
-
-```
 
 Every 10th, starting at 20
 ```{r, fig.width=5, fig.height=3}
@@ -803,14 +798,14 @@ seq.results5 <-threshold_application( set.eval.points=seq(10,150, by=10))
 
 seq.results5$p1
 
-p5.cum <- seq.results5$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
+fig3c <- seq.results5$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
 p5.cum
 ggplotly(p5.cum)
 
 
-p5.hist <- seq.results5$p3
-p5.hist
+fig4c <- seq.results5$p3
+fig4c
 
 seq.results5$min.tresholds
 
@@ -834,17 +829,19 @@ tab.summary
 Figure 4
 
 ```{r, fig.width=6, fig.height=8}
-(p1.cum +ggtitle('Evaluations starting at 50, every 50th')) / 
-  (p3.cum+ggtitle('Evaluations starting at 50, every 10th') )/
-  (p5.cum+ggtitle('Evaluations starting at 20, every 10th') )
+fig3 <- (fig3a +ggtitle('Evaluations starting at 50, every 50th')) / 
+  (fig3b+ggtitle('Evaluations starting at 50, every 10th') )/
+  (fig3c+ggtitle('Evaluations starting at 20, every 10th') )
+
+fig3
 ```
 
-Figure 5
+Figure 4
 
 ```{r, fig.width=5, fig.height=4}
-(p1.hist +xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 50, every 50th') ) + 
-  (p3.hist+xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 50, every 10th') ) + 
-  (p5.hist+xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 20, every 10th') ) +  
+fig4 <- (fig4a +xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 50, every 50th') ) + 
+  (fig4b+xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 50, every 10th') ) + 
+  (fig4c+xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 20, every 10th') ) +  
   plot_layout(ncol=2)
 ```
 
@@ -937,30 +934,7 @@ ggplot( aes(x=pop, y=parm_mean, group=repN, color=Pooling_type)) +
 ```
 
 
-### How do probs from a single trial evolve as data accrue?
 
-Figure 3
-
-```{r, fig.width=5, fig.height=2}
-p1 <-probs %>%
-    left_join(obs_data, by=c('repN','N_event_look','ve.new.trial')) %>%
-  filter(ve.new.trial==44.4 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
-  mutate(Pooling_type = as.factor(Pooling_type)) %>%
-ggplot( aes(x=N_event_look, y=exp(post_means), group=interaction(repN,prior.info))) +
-  geom_line( alpha=1) +
-  theme_classic() +
-   geom_ribbon( aes(x=N_event_look, ymin=exp(ci[,1]), 
-                   ymax=exp(ci[,2])), alpha=0.1) +
-  facet_wrap(~prior.info) +
-  ylab('Rate ratio') +
-  geom_line(aes(x=N_event_look, y=obs_RR), color='black', lty=3)+
-  ylim(0,2.5) +
-  xlab('Total accrued cases') +
-  geom_hline(yintercept=1, lty=2)
-
-p1
-ggplotly(p1)
-```
 
 
 ## Average sample size before stopping
