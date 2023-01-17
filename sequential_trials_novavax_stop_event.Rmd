@@ -591,7 +591,36 @@ FIGURE 1 combined A and B
 fig1a / 
   fig1b +  
   plot_annotation(tag_levels = 'A')
+
+ggplotly(fig1a)
+ggplotly(fig1b)
+
 ```
+
+Relationship between number of events and population size
+
+```{r}
+
+pop.stop <- probs %>%
+  group_by(N_event_look) %>%
+  summarize(mean_pop=mean(pop)) %>%
+  ggplot(aes(x=mean_pop, y=N_event_look)) +
+  geom_point()+
+  theme_light()+
+  ylab('Number of events at evaluation point') +
+  xlab('Number of particpants enrolled')
+
+pop.stop
+
+ggplotly(pop.stop)
+
+```
+Observed
+```{r}
+ obs_data <- mod.ds1.c %>%
+  mutate( obs_RR = vax/placebo ) 
+```
+
 
 ### How do probs from a single trial evolve as data accrue?
 
@@ -755,8 +784,9 @@ seq.results1$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
 fig3a <- seq.results1$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
-p1.cum
-ggplotly(p1.cum)
+fig3a
+ggplotly(fig3a)
+
 fig4a <-seq.results1$p3
 
 tab1 <- seq.results1$min.tresholds %>%
@@ -776,8 +806,8 @@ seq.results3$p2+xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
 fig3b <- seq.results3$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
-p3.cum
-ggplotly(p3.cum)
+fig3b
+ggplotly(fig3b)
 
 seq.results3$p3
 
@@ -800,8 +830,8 @@ seq.results5$p1
 
 fig3c <- seq.results5$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
-p5.cum
-ggplotly(p5.cum)
+fig3c
+ggplotly(fig3c)
 
 
 fig4c <- seq.results5$p3
@@ -831,18 +861,22 @@ Figure 4
 ```{r, fig.width=6, fig.height=8}
 fig3 <- (fig3a +ggtitle('Evaluations starting at 50, every 50th')) / 
   (fig3b+ggtitle('Evaluations starting at 50, every 10th') )/
-  (fig3c+ggtitle('Evaluations starting at 20, every 10th') )
+  (fig3c+ggtitle('Evaluations starting at 20, every 10th') )+
+   plot_annotation(tag_levels = 'A')
 
 fig3
 ```
 
 Figure 4
 
-```{r, fig.width=5, fig.height=4}
-fig4 <- (fig4a +xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 50, every 50th') ) + 
-  (fig4b+xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 50, every 10th') ) + 
-  (fig4c+xlim(0,NA)+ylim(0,80) +ggtitle('Evaluate starting at 20, every 10th') ) +  
-  plot_layout(ncol=2)
+```{r, fig.width=7, fig.height=3}
+fig4 <- (fig4a +xlim(0,NA)+ylim(0,80)) + # +ggtitle('Evaluate starting at 50, every 50th') ) + 
+  (fig4b+xlim(0,NA)+ylim(0,80) )+ #+ggtitle('Evaluate starting at 50, every 10th') ) + 
+  (fig4c+xlim(0,NA)+ylim(0,80)) + #+ggtitle('Evaluate starting at 20, every 10th') ) +  
+  plot_layout(ncol=3)+
+   plot_annotation(tag_levels = 'A')
+
+fig4
 ```
 
 
