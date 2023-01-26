@@ -405,8 +405,6 @@ all.mods <- readRDS( './Results/all.mods_novavax.rds') #%>%
 
 ```
 
-## Bayesian estimates of performance
-
 ```{r}
 
 #the p_xx are replicated for each parameter so filter to just 1 parameter
@@ -422,6 +420,8 @@ probs <- all.mods %>%
          prior.info = if_else(prior.info=="N(u1,tau);t(0,1,1)T(0,)", "N(u1,tau);tau~t(0,1,1)T(0,)", prior.info )
          )
 ```
+
+## Bayesian estimates of performance
 
 ### Trajectories of P(benefit) for a subset of trials
 
@@ -696,11 +696,13 @@ threshold_finder_sequential <- function(test.alpha=0.05, eval.points ){
   mutate( eff = 1*(p_0>(1-test.alpha)) ,
             stopN = cumsum(eff) ,
           stop_point = if_else(stopN==1,1,NA_real_),
-          stop = if_else(stopN>=1,1,0)) %>%
+          stop = if_else(stopN>=1,1,0),
+          pop_stop=pop*stop_point
+          ) %>%
   ungroup() %>%
   group_by(N_event_look, prior.info) %>%
-    filter(N_event_look==eval.points[length(eval.points)] ) %>%
-       summarize(prop_stopped = mean(stop), ave_pop_stop = mean(pop*stop_point, na.rm=T)) %>%
+#    filter(N_event_look==eval.points[length(eval.points)] ) %>%
+       summarize(prop_stopped = mean(stop), ave_pop_stop = mean(pop_stop, na.rm=T), median_pop_stop=median(pop_stop, na.rm=T)) %>%
    mutate(test.threshold= (1-test.alpha))
 }
 ```
@@ -713,11 +715,13 @@ threshold_application <- function( set.eval.points){
    
     #find (1-alpha) that returns acceptable type 1 error  
    min.tresholds <- seq.tresholds %>%
+     ungroup() %>%
+     filter(N_event_look==max(N_event_look)) %>% #what is type 1 error at last interim look?
     arrange(prior.info, test.threshold) %>%
     group_by(prior.info) %>%
     mutate(  acceptable = (prop_stopped <=0.05), rank_acceptable=cumsum(acceptable)  ) %>%
     filter(rank_acceptable==1) %>%
-     select(prior.info,test.threshold,ave_pop_stop)
+     select(prior.info,test.threshold)
    
    
    stopped_efficacy1 =probs %>%
@@ -726,8 +730,9 @@ threshold_application <- function( set.eval.points){
     arrange(repN, ve.new.trial,prior.info ,N_event_look) %>%
    group_by(repN,  ve.new.trial,prior.info) %>%
     mutate( eff = 1*(p_0>test.threshold),
-              stop = cumsum(eff) ,
-            stop = if_else(stop>=1,1,0)) %>%
+              stopN = cumsum(eff) ,
+            stop = if_else(stopN>=1,1,0)
+    )             %>%
     ungroup() %>%
     group_by(N_event_look, ve.new.trial,prior.info) %>%
       summarize(prop_stopped = mean(stop)) 
@@ -742,6 +747,11 @@ threshold_application <- function( set.eval.points){
     ungroup() %>%
     group_by(pop, ve.new.trial,prior.info) %>%
        filter(stopN==1)
+     
+     ave_pop_stop <- stopped_efficacy_Pop %>%
+       ungroup() %>%
+       group_by(ve.new.trial,prior.info) %>%
+       summarize(ave_pop_stop=mean(pop))
      
    
    p1 <- ggplot(seq.tresholds, aes( x=test.threshold, y=prop_stopped, group=prior.info, color=prior.info)) + 
@@ -766,7 +776,7 @@ ggplot(aes( x=pop)) +
   theme_classic() 
   #ggtitle('Cumulative proportion with >X% prob that effect is >0%VE')
    
-   out.obj = list('min.tresholds'=min.tresholds, 'stopped_efficacy1'=stopped_efficacy1,'seq.tresholds'=seq.tresholds,'p1'=p1,'p2'=p2,'p3'=p3)
+   out.obj = list('min.tresholds'=min.tresholds, 'stopped_efficacy1'=stopped_efficacy1,'seq.tresholds'=seq.tresholds,'p1'=p1,'p2'=p2,'p3'=p3, 'ave_pop_stop'=ave_pop_stop)
    return(out.obj)
 }
 ```
