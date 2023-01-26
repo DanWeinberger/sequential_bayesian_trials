@@ -786,7 +786,8 @@ call the functions and look at output
 
 ####nsgle evaluation at 90 events (based on static power calc)
 
-NOTE SOMETHING FINNY HERE...POP INCREASES WITH HIHER VE...DOESNT MAKE SENSE
+
+If just do a single valuation at 90 events (powered to give 80-90% power with VE 44.4%), need a very large pop if VE is actually 90%. This makes sense because the rate of events in the vaccine group will be very low, so need to enroll a lot of people. this will be grossly overpowered
 ```{r, fig.width=5, fig.height=3}
 
 seq.results0 <-threshold_application( set.eval.points  =c(90))
@@ -802,12 +803,12 @@ tab0 <- seq.results0$min.tresholds %>%
 
 ```
 
-can stop at 10  20  30  40  50  60  70  80  90 100 110 120 130 140 150
+With 3 evaluation points
 ```{r, fig.width=5, fig.height=3}
 
 seq.results1 <-threshold_application( set.eval.points  =c(50,100,150))
 
-seq.results1$p1
+#seq.results1$p1
 
 seq.results1$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
@@ -829,7 +830,7 @@ Every 10th, starting at 50
 
 seq.results3 <-threshold_application( set.eval.points=seq(50,150, by=10))
 
-seq.results3$p1
+#seq.results3$p1
 
 seq.results3$p2+xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
@@ -855,7 +856,7 @@ Every 10th, starting at 20
 
 seq.results5 <-threshold_application( set.eval.points=seq(10,150, by=10))
 
-seq.results5$p1
+#seq.results5$p1
 
 fig3c <- seq.results5$p2 +xlim(10, 150) +ylab('Proportion of trials that have stopped')
 
@@ -878,9 +879,21 @@ tab5 <- seq.results5$min.tresholds %>%
 
 
 ```{r}
-tab.summary <- bind_rows(tab1, tab3,  tab5) %>% 
+tabc1 <- seq.results1$ave_pop_stop %>%
+  reshape2::dcast(prior.info ~ ve.new.trial, value.var='ave_pop_stop') %>%
+  left_join(tab1, by='prior.info')
+
+tabc3 <- seq.results3$ave_pop_stop %>%
+  reshape2::dcast(prior.info ~ ve.new.trial, value.var='ave_pop_stop') %>%
+  left_join(tab3, by='prior.info')
+
+tabc5 <- seq.results5$ave_pop_stop %>%
+  reshape2::dcast(prior.info ~ ve.new.trial, value.var='ave_pop_stop') %>%
+  left_join(tab5, by='prior.info')
+
+tab.summary <- bind_rows(tabc1, tabc3,  tabc5) %>% 
   filter(prior.info %in% c("N(0,3.32)", "N(u1,tau2); tau2~IG(0.01,0.01)", "N(u1,tau); tau~U(0,2)"  )) %>%
-  dplyr::arrange(prior.info, freq_look, startpop)
+  dplyr::arrange( freq_look, startpop,prior.info)
 
 write.csv(tab.summary, './Results/Table_sequential_probs.csv')
 
