@@ -880,14 +880,17 @@ tab5 <- seq.results5$min.tresholds %>%
 
 ```{r}
 tabc1 <- seq.results1$ave_pop_stop %>%
+  mutate(ave_pop_stop=round(ave_pop_stop,-1)) %>%
   reshape2::dcast(prior.info ~ ve.new.trial, value.var='ave_pop_stop') %>%
   left_join(tab1, by='prior.info')
 
 tabc3 <- seq.results3$ave_pop_stop %>%
+    mutate(ave_pop_stop=round(ave_pop_stop,-1)) %>%
   reshape2::dcast(prior.info ~ ve.new.trial, value.var='ave_pop_stop') %>%
   left_join(tab3, by='prior.info')
 
 tabc5 <- seq.results5$ave_pop_stop %>%
+    mutate(ave_pop_stop=round(ave_pop_stop,-1)) %>%
   reshape2::dcast(prior.info ~ ve.new.trial, value.var='ave_pop_stop') %>%
   left_join(tab5, by='prior.info')
 
@@ -913,11 +916,11 @@ fig3
 
 Figure 4
 
-```{r, fig.width=7, fig.height=3}
-fig4 <- (fig4a +xlim(0,NA)+ylim(0,80)) + # +ggtitle('Evaluate starting at 50, every 50th') ) + 
-  (fig4b+xlim(0,NA)+ylim(0,80) )+ #+ggtitle('Evaluate starting at 50, every 10th') ) + 
-  (fig4c+xlim(0,NA)+ylim(0,80)) + #+ggtitle('Evaluate starting at 20, every 10th') ) +  
-  plot_layout(ncol=3)+
+```{r, fig.width=7, fig.height=6}
+fig4 <- (fig4a +xlim(0,NA)+ylim(0,120)) + # +ggtitle('Evaluate starting at 50, every 50th') ) + 
+  (fig4b+xlim(0,NA)+ylim(0,120) )+ #+ggtitle('Evaluate starting at 50, every 10th') ) + 
+  (fig4c+xlim(0,NA)+ylim(0,120)) + #+ggtitle('Evaluate starting at 20, every 10th') ) +  
+  plot_layout(nrow=3)+
    plot_annotation(tag_levels = 'A')
 
 fig4
