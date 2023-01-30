@@ -46,7 +46,7 @@ params<-c('int', 'beta1', 'delta', 'tau', 'alpha')
 ##############################################
 posterior_samples<-coda.samples(model_jags, 
                                 params, 
-                                n.iter=1000,quiet=T,progress.bar='none')
+                                n.iter=10000,quiet=T,progress.bar='none')
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
