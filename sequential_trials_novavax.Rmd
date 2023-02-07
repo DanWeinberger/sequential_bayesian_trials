@@ -752,6 +752,7 @@ find_alpha =probs %>%
 
 Function applies threshold identified by threshold_finder_sequential
 
+
 ```{r}
 threshold_application <- function( set.eval.points){
     seq.tresholds <- pbapply::pblapply(seq(0.001,0.05, by=0.001), threshold_finder_sequential, eval.points=set.eval.points) %>%   bind_rows()
