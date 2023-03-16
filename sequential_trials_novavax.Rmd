@@ -758,7 +758,7 @@ ggplot(aes( x=total_pop, y=prop_stopped30, group=prior.info, color=prior.info)) 
 
 call the functions and look at output
 
-Every 1200, starting at 1200 Participants
+Every 1000, starting at 1000 Participants
 
 ```{r}
 
@@ -871,7 +871,7 @@ ggplot(aes( x=total_pop, y=prop_futile_30, group=prior.info, color=prior.info)) 
     theme(text=element_text( family="serif"))
 ```
 
-### Power for sequential trial with looks every 600 people, no control of type I error
+### Power for sequential trial with looks every 1000 people, no control of type I error Figure SX
 
 ```{r, fig.width=6, fig.height=3}
 stopped_efficacy1 =probs %>%
