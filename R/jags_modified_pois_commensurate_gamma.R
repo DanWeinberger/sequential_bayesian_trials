@@ -26,6 +26,6 @@ for(i in 1:2){
 	    a2 <- prior_mean_log_irr
 	    a3 <- sd.upper
 
-	    alpha=1
+	   # alpha=1
 }
 "

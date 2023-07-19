@@ -34,6 +34,6 @@ for(i in 1:2){
 	    a4 <- set_tau_shp
 	    a5 <- sd.upper
 
-	    alpha=1
+	   # alpha=1
 }
 "

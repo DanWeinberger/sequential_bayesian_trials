@@ -39,18 +39,20 @@ model_jags<-jags.model(model_spec,
                        n.chains=1, quiet=T)
 
 
-params<-c('int', 'beta1', 'delta', 'tau', 'alpha')
+params<-c('int', 'beta1', 'delta', 'tau')
 
 ##############################################
 #Posterior Sampling
 ##############################################
 posterior_samples<-coda.samples(model_jags, 
                                 params, 
-                                n.iter=1000,quiet=T,progress.bar='none')
+                                n.iter=10000,quiet=T,progress.bar='none')
 
 posterior_samples.all<-do.call(rbind,posterior_samples)
 
 post_means<-apply(posterior_samples.all, 2, mean)
+post_medians<-apply(posterior_samples.all, 2, median)
+
 sample.labs<-names(post_means)
 ci<-t(hdi(posterior_samples.all, credMass = 0.95))
 ci<-matrix(ci, ncol=2)
@@ -58,6 +60,11 @@ ci<-matrix(ci, ncol=2)
 ci975<-t(hdi(posterior_samples.all, credMass = 0.975))
 ci975<-matrix(ci975, ncol=2)
 
+
+var1= 1/posterior_samples.all[,'tau'] # variance = prec^-1
+alpha1 = exp(-var1)
+alpha1_mean = mean(alpha1)
+alpha1_median = median(alpha1)
 
 #criteria from Frank Harrell: https://hbiostat.org/proj/covid19/bayesplan.html
 p_0 <- mean(exp(posterior_samples.all[,'beta1']) < 1)
@@ -75,6 +82,7 @@ p_futile <- mean(exp(posterior_samples.all[,'beta1']) > 0.7 ) #if VE<30%, it is 
 row.names(ci)<-sample.labs
 #post_means<-sprintf("%.1f",round(post_means,1))
 names(post_means)<-sample.labs
+names(post_medians)<-sample.labs
 
 post_var <- apply(posterior_samples.all,2, var)
 
@@ -94,11 +102,13 @@ combined <- cbind.data.frame(post_means,
                            'p_0_75'=p_0_75,
                            'p_0_70'=p_0_70,
                            'p_harm_o1' =p_harm_o1,
-                           'p_futile'= p_futile
+                           'p_futile'= p_futile,
+                           alpha1_mean,
+                           alpha1_median
 
 )
 names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var',   'parm', 'repN','pop','ve.new.trial',
-                     'p_0','p_0_95','p_0_90','p_0_85', 'p_0_80','p_0_75', 'p_0_70','p_harm_o1','p_futile')
+                     'p_0','p_0_95','p_0_90','p_0_85', 'p_0_80','p_0_75', 'p_0_70','p_harm_o1','p_futile','alpha1_mean','alpha1_median')
 
 
 return(combined)
