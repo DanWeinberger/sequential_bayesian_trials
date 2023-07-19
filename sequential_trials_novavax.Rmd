@@ -15,6 +15,8 @@ library(patchwork)
 library(stringr)
 library(pbapply)
 library(parallel)
+library(multidplyr)
+
 library(plotly)
 
 library(ggplot2)
@@ -68,6 +70,9 @@ hist(rnorm(10000, mean=prior.mean.logrr, sd=prior.sd.logrr))  #informative prior
 For commensurate prior, need to set hyperior for variance as well. If we were to use the historical data fully, we would want the hyperprior for posterior variance for commensurate to approach 0. If it doesn't use it at all, we would want variance to be sufficiently large to cover negative and neutral effects
 
 ```{r}
+
+
+
  hist(rgamma(1000,0.01, 0.01)) # gamma hyperprior from psborrow
  mean(rgamma(1000,0.01, 0.01)) # gamma hyperprior from psborrow
 
@@ -327,7 +332,6 @@ Call all models for both simulated datasets. Use parallel processing; takes \~60
 ptm <- proc.time()
 
 
-library(multidplyr)
 ptm <- proc.time()
 numCores = detectCores() -1
 cluster1 <- new_cluster(numCores)
@@ -434,6 +438,50 @@ all.mods <- readRDS( './Results/all.mods_novavax.rds') %>%
 
 
 ```
+
+## How much agreement is there between prior and observed data
+
+```{r}
+N=100000
+prec.sim <- rgamma(n=N, shape=0.01, rate=0.01)
+var.sim <- 1/prec.sim
+alpha.sim <- exp(-1*var.sim)
+hist(alpha.sim)
+
+full.prior <- rnorm(N, mean=rep(0,N) , sd=sqrt(var.sim) )
+hist(full.prior)
+```
+
+In these models tau is precision = 1/var
+If precision is high, this indicates a lot of pooling on commensurate prior
+
+```{r}
+
+check.tau <- readRDS( './Results/all.mods_novavax.rds') %>%
+  filter(parm=='tau' & Pooling_type !='none') 
+
+ggplot(data=check.tau, aes(x=pop, y=alpha1_mean) )+
+         geom_point(alpha=0.01) +
+  theme_classic() +
+  facet_grid(ve.new.trial~prior.info)
+
+
+check.tau %>% 
+  filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+  ggplot( aes(x=pop, y=alpha1_mean) )+
+         geom_point(alpha=0.01) +
+  theme_classic() +
+  facet_grid(~ve.new.trial)
+
+check.tau %>% 
+  filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+  ggplot( aes(x=pop, y=alpha1_median) )+
+         geom_point(alpha=0.01) +
+  theme_classic() +
+  facet_grid(~ve.new.trial)
+
+```
+
 
 ## Bayesian estimates of performance
 

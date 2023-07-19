@@ -27,6 +27,6 @@ for(i in 1:2){
   a3 = sd.upper
 
   tau=1
-  alpha=1
+  #alpha=1
 }
 "

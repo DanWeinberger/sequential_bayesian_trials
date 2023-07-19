@@ -33,6 +33,6 @@ for(i in 1:2){
 	    a3 <- set_tau_rate
 	    a4 <- set_tau_shp
 
-	    alpha=1
+	   # alpha=1
 }
 "
