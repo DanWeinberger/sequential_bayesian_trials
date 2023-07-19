@@ -482,7 +482,10 @@ check.tau %>%
   facet_grid(~ve.new.trial)+
   ylim(0,1) +
   ylab('Agreement between prior and data')
+```
 
+
+```{r}
 check.tau %>% 
   filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
   ggplot( aes(x=100*(1-exp(mean)), y=alpha1_median) )+
@@ -490,6 +493,18 @@ check.tau %>%
          geom_point(alpha=0.01) +
   theme_classic() +
   facet_grid(~ve.new.trial)+
+  ylim(0,1) +
+  xlim(c(0,100))+
+  ylab('Agreement between prior and data') +
+  xlab ('estimate of VE')
+
+check.tau %>% 
+  filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+  ggplot( aes(x=100*(1-exp(mean)), y=alpha1_median, color=as.factor(ve.new.trial)) )+
+    geom_hline(yintercept=c(0.2, 0.4, 0.6, 0.8,1.0), lty=2, col='black', alpha=0.1)+
+         geom_point(alpha=0.01) +
+  theme_classic() +
+  #facet_grid(~ve.new.trial)+
   ylim(0,1) +
   xlim(c(0,100))+
   ylab('Agreement between prior and data') +
