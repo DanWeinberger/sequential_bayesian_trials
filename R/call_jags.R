@@ -104,7 +104,7 @@ combined <- cbind.data.frame(post_means,
                            'p_harm_o1' =p_harm_o1,
                            'p_futile'= p_futile,
                            alpha1_mean,
-                           alpha1_median,
+                           alpha1_median
 
 )
 names(combined) <- c('mean','lcl','ucl','lcl975','ucl975', 'var',   'parm', 'repN','pop','ve.new.trial',

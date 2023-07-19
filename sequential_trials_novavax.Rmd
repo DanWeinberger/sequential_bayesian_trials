@@ -466,19 +466,22 @@ ggplot(data=check.tau, aes(x=pop, y=alpha1_mean) )+
   facet_grid(ve.new.trial~prior.info)
 
 
-check.tau %>% 
-  filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
-  ggplot( aes(x=pop, y=alpha1_mean) )+
-         geom_point(alpha=0.01) +
-  theme_classic() +
-  facet_grid(~ve.new.trial)
+# check.tau %>% 
+#   filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+#   ggplot( aes(x=pop, y=alpha1_mean) )+
+#          geom_point(alpha=0.01) +
+#   theme_classic() +
+#   facet_grid(~ve.new.trial)
 
 check.tau %>% 
   filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
   ggplot( aes(x=pop, y=alpha1_median) )+
+    geom_hline(yintercept=c(0.2, 0.4, 0.6, 0.8,1.0), lty=2, col='black', alpha=0.1)+
          geom_point(alpha=0.01) +
   theme_classic() +
-  facet_grid(~ve.new.trial)
+  facet_grid(~ve.new.trial)+
+  ylim(0,1) +
+  ylab('Agreement between prior and data')
 
 ```
 
