@@ -458,7 +458,7 @@ If precision is high, this indicates a lot of pooling on commensurate prior
 ```{r}
 
 check.tau <- readRDS( './Results/all.mods_novavax.rds') %>%
-  filter(parm=='tau' & Pooling_type !='none') 
+  filter(parm=='beta1' & Pooling_type !='none') 
 
 ggplot(data=check.tau, aes(x=pop, y=alpha1_mean) )+
          geom_point(alpha=0.01) +
@@ -482,6 +482,18 @@ check.tau %>%
   facet_grid(~ve.new.trial)+
   ylim(0,1) +
   ylab('Agreement between prior and data')
+
+check.tau %>% 
+  filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+  ggplot( aes(x=100*(1-exp(mean)), y=alpha1_median) )+
+    geom_hline(yintercept=c(0.2, 0.4, 0.6, 0.8,1.0), lty=2, col='black', alpha=0.1)+
+         geom_point(alpha=0.01) +
+  theme_classic() +
+  facet_grid(~ve.new.trial)+
+  ylim(0,1) +
+  xlim(c(0,100))+
+  ylab('Agreement between prior and data') +
+  xlab ('estimate of VE')
 
 ```
 
@@ -530,13 +542,15 @@ fig2a <- probs %>%
          rr_ucl=exp(ucl),
          rr_lcl=exp(lcl),
          rr_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
-         rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl)) %>%
+         rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
+         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 
+                               'With pooling')) %>%
 ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
    geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
                    ymax=rr_ucl), alpha=0.1) +
-  facet_wrap(~prior.info) +
+  facet_wrap(~Prior.label) +
   ylab('Rate ratio') +
   xlab('Total Participants')+
   geom_line(aes(x=pop*2, y=obs_RR), color='black', lty=3)+
@@ -552,13 +566,14 @@ fig2b <- probs %>%
          rr_ucl=exp(ucl),
          rr_lcl=exp(lcl),
          rr_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
-         rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl)) %>%
-ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
+          rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
+         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 'With pooling')) %>%
+  ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
    geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
                    ymax=rr_ucl), alpha=0.1) +
-  facet_wrap(~prior.info) +
+  facet_wrap(~Prior.label) +
   ylab('Rate ratio') +
   xlab('Total Participants')+
   geom_line(aes(x=pop*2, y=obs_RR), color='black', lty=3)+
@@ -574,13 +589,14 @@ fig2c <- probs %>%
          rr_ucl=exp(ucl),
          rr_lcl=exp(lcl),
          rr_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
-         rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl)) %>%
-ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
+        rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
+         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 'With pooling')) %>%
+  ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
    geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
                    ymax=rr_ucl), alpha=0.1) +
-  facet_wrap(~prior.info) +
+  facet_wrap(~Prior.label) +
   ylab('Rate ratio') +
   xlab('Total Participants')+
   geom_line(aes(x=pop*2, y=obs_RR), color='black', lty=3)+
@@ -770,7 +786,7 @@ p1a
 
 
 p2a <- stopped_efficacy1 %>%
-  filter( prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3~U(0,2)"  )) %>%
+  filter( prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)"  )) %>%
 ggplot(aes( x=total_pop, y=prop_stopped0, group=prior.info, color=prior.info)) +
   geom_line() +
     geom_point() +
@@ -802,7 +818,7 @@ ggplot(aes( x=total_pop, y=prop_stopped30, group=prior.info, color=prior.info)) 
     theme(text=element_text( family="serif"))
 
 
-   out.obj = list('min.tresholds'=min.tresholds, 'stopped_efficacy1'=stopped_efficacy1,'ave_pop_stop'=ave_pop_stop,'seq.tresholds'=seq.tresholds,'p1'=p1,'p2a'=p2a,'p2a1'=p2a1,'p2b'=p2b)
+   out.obj = list('min.tresholds'=min.tresholds, 'stopped_efficacy1'=stopped_efficacy1,'ave_pop_stop'=ave_pop_stop,'seq.tresholds'=seq.tresholds,'p1a'=p1a,'p2a'=p2a,'p2a1'=p2a1,'p2b'=p2b)
    return(out.obj)
 }
 ```
