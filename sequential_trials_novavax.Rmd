@@ -484,19 +484,24 @@ check.tau %>%
   ylab('Agreement between prior and data')
 ```
 
-
+Figure S2 
 ```{r}
 check.tau %>% 
   filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+  mutate(     new.ve.label = if_else(ve.new.trial==0, 'A) VE=0%',
+                            if_else(ve.new.trial==44.4, 'B) VE=44.4%',
+                            if_else(ve.new.trial==90, 'C) VE=90%', NA_character_)))) %>%
   ggplot( aes(x=100*(1-exp(mean)), y=alpha1_median) )+
     geom_hline(yintercept=c(0.2, 0.4, 0.6, 0.8,1.0), lty=2, col='black', alpha=0.1)+
+      geom_vline(xintercept=c(44.4), lty=2, col='gray')+
+
          geom_point(alpha=0.01) +
   theme_classic() +
-  facet_grid(~ve.new.trial)+
+  facet_grid(~new.ve.label)+
   ylim(0,1) +
-  xlim(c(0,100))+
+  xlim(c(-100,100))+
   ylab('Agreement between prior and data') +
-  xlab ('estimate of VE')
+  xlab ('estimate of VE (%)')
 
 check.tau %>% 
   filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
@@ -506,11 +511,45 @@ check.tau %>%
   theme_classic() +
   #facet_grid(~ve.new.trial)+
   ylim(0,1) +
-  xlim(c(0,100))+
+  xlim(c(-100,100))+
   ylab('Agreement between prior and data') +
   xlab ('estimate of VE')
 
+
+
 ```
+
+## Compare delta and beta estimates
+```{r}
+check.beta <- readRDS( './Results/all.mods_novavax.rds') %>%
+  filter(parm=='beta1' & Pooling_type !='none')   %>%
+  select(prior.info, mean, repN, pop, ve.new.trial) %>%
+  rename(beta_est=mean)
+
+check.delta <- readRDS( './Results/all.mods_novavax.rds') %>%
+  filter(parm=='delta' & Pooling_type !='none') %>%
+  select(prior.info, mean, repN, pop, ve.new.trial) %>%
+  rename(delta_est=mean)
+
+comp1 <- check.delta %>%
+  left_join(check.beta, by=c('prior.info','repN','pop', 've.new.trial'))
+
+comp1 %>% 
+  filter(prior.info== "N(u1,tau); IG(0.01,0.01)") %>%
+  ggplot( aes(x=100*(1-exp(delta_est)), y=100*(1-exp(beta_est)), color=as.factor(ve.new.trial)) )+
+    geom_hline(yintercept=c(0.2, 0.4, 0.6, 0.8,1.0), lty=2, col='black', alpha=0.1)+
+      geom_vline(xintercept=c(30,40,50), lty=2, col='black', alpha=0.1)+
+
+         geom_point(alpha=0.01) +
+  theme_classic() +
+  #facet_grid(~ve.new.trial)+
+  ylim(0,100) +
+  xlim(c(0,100))+
+  ylab('estimate of VE original') +
+  xlab ('estimate of VE original')
+  
+```
+
 
 
 ## Bayesian estimates of performance
@@ -527,8 +566,18 @@ probs <- all.mods %>%
          prior.info = if_else(prior.info=="N(u1,tau); IG(0.01,0.01)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)", prior.info ),
          prior.info = if_else(prior.info=="N(u1,tau); tau~U(0,2)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3~U(0,2)", prior.info ),
          prior.info = if_else(prior.info=="N(u1,tau); U(0,100)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3~U(0,100)", prior.info ),
-         prior.info = if_else(prior.info=="N(u1,tau);t(0,1,1)T(0,)", "N(\u03B4\u2081,\u03C3\u00B2);\u03C3~t(0,1,1)T(0,)", prior.info )
-         )
+         prior.info = if_else(prior.info=="N(u1,tau);t(0,1,1)T(0,)", "N(\u03B4\u2081,\u03C3\u00B2);\u03C3~t(0,1,1)T(0,)", prior.info ),
+         
+         prior.label = if_else(prior.info=="N(0,3.32)", 'No pooling', 
+                  if_else(prior.info== "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(3,2)", 'With pooling (\u03C3\u00B2~IG(3,2))',
+                  if_else(prior.info== "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)", 'With pooling (\u03C3\u00B2~IG(0.01,0.01))',
+                  if_else(prior.info== "N(\u03B4\u2081,\u03C3\u00B2); \u03C3~U(0,2)", 'With pooling (\u03C3~U(0,2))',
+                 if_else(prior.info== "N(\u03B4\u2081,\u03C3\u00B2); \u03C3~U(0,100)", 'With pooling  (\u03C3~U(0,100))',
+      if_else(prior.info== "N(u1,tau);t(0,1,1)T(0,)", "N(\u03B4\u2081,\u03C3\u00B2);\u03C3~t(0,1,1)T(0,)", 'With pooling  (\u03C3~t(0,1,1)T(0,))'
+      ))))))                                                                         
+      )
+
+         
 ```
 
 ## Figure S1: Number of participants vs Number of events
@@ -549,7 +598,7 @@ obs_data %>%
 
 ### Figure 1
 
-```{r, fig.width=4, fig.height=6}
+```{r, fig.width=4, fig.height=7}
 fig2a <- probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
   filter( ve.new.trial==44.4 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)"  )) %>%
@@ -564,7 +613,7 @@ ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
    geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
-                   ymax=rr_ucl), alpha=0.1) +
+                   ymax=rr_ucl), alpha=0.3) +
   facet_wrap(~Prior.label) +
   ylab('Rate ratio') +
   xlab('Total Participants')+
@@ -572,7 +621,8 @@ ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
   ylim(0,3) +
   geom_hline(yintercept=1, lty=2)+
   ylab('Risk Ratio') +
-    theme(text=element_text( family="serif"))
+    theme(text=element_text( family="serif"))+
+  
 
 fig2b <- probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
@@ -587,7 +637,7 @@ fig2b <- probs %>%
   geom_line( alpha=1) +
   theme_classic() +
    geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
-                   ymax=rr_ucl), alpha=0.1) +
+                   ymax=rr_ucl), alpha=0.3) +
   facet_wrap(~Prior.label) +
   ylab('Rate ratio') +
   xlab('Total Participants')+
@@ -610,7 +660,7 @@ fig2c <- probs %>%
   geom_line( alpha=1) +
   theme_classic() +
    geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
-                   ymax=rr_ucl), alpha=0.1) +
+                   ymax=rr_ucl), alpha=0.3) +
   facet_wrap(~Prior.label) +
   ylab('Rate ratio') +
   xlab('Total Participants')+
@@ -620,7 +670,9 @@ fig2c <- probs %>%
   ylab('Risk ratio') +
     theme(text=element_text( family="serif"))
 
-fig2a/fig2b/fig2c + 
+(fig2a+ ggtitle('True effectiveness in new trial=44.4%') +     theme( strip.background = element_blank() ))/
+  (fig2b+ ggtitle('True effectiveness in new trial=90%')  +  theme( strip.background = element_blank() ))/
+  (fig2c+ ggtitle('True effectiveness in new trial=0%')+     theme( strip.background = element_blank() ) ) + 
   plot_annotation(tag_levels = 'A')
 ```
 
@@ -697,7 +749,7 @@ threshold_finder_sequential <- function(test.alpha=0.05, eval.points ){
 find_alpha =probs %>%
     filter(total_pop %in% eval.points & ve.new.trial==0) %>%
   arrange(repN, prior.info ,total_pop) %>%
- group_by(repN,  prior.info) %>%
+ group_by(repN,  prior.info, prior.label) %>%
   mutate( eff0 = 1*(p_0>(1-test.alpha)),
           eff30 = 1*(p_0_70>(1-test.alpha)) ,
             stop0 = cumsum(eff0) ,
@@ -705,7 +757,7 @@ find_alpha =probs %>%
           stop30 = cumsum(eff30) ,
           stop30 = if_else(stop30>=1,1,0)) %>%
   ungroup() %>%
-  group_by(total_pop, prior.info) %>%
+  group_by(total_pop, prior.info,prior.label) %>%
     filter(total_pop==eval.points[length(eval.points)] ) %>%
        summarize(prop_stopped0 = mean(stop0),prop_stopped30 = mean(stop30)) %>%
    mutate(test.threshold= (1-test.alpha))
@@ -722,37 +774,41 @@ threshold_application <- function( set.eval.points){
     #find (1-alpha) that returns acceptable type 1 error  
    min.tresholds1 <- seq.tresholds %>%
     arrange(prior.info, test.threshold) %>%
-    group_by(prior.info) %>%
+    group_by(prior.info,prior.label) %>%
     mutate(  acceptable30 = (prop_stopped30 <=0.05), rank_acceptable30=cumsum(acceptable30) ,
              acceptable0 = (prop_stopped0 <=0.05), rank_acceptable0=cumsum(acceptable0) ) 
    
-   min.tresholds2a <- min.tresholds1 %>%
+   min.tresholdS3a <- min.tresholds1 %>%
     filter(rank_acceptable0==1) %>%
-     select(prior.info,test.threshold) %>%
+     select(prior.info,test.threshold,prior.label) %>%
      rename(test.threshold0=test.threshold)
    
-      min.tresholds2b <- min.tresholds1  %>%
+      min.tresholdS3b <- min.tresholds1  %>%
     filter(rank_acceptable30==1) %>%
-     select(prior.info,test.threshold) %>%
+     select(prior.info,prior.label,test.threshold) %>%
      rename(test.threshold30=test.threshold)
    
-      min.tresholds <- min.tresholds2a %>%
-        left_join(min.tresholds2b, by='prior.info')
+      min.tresholds <- min.tresholdS3a %>%
+        left_join(min.tresholdS3b, by='prior.info')
    
    stopped_efficacy1 =probs %>%
     filter(total_pop %in% set.eval.points ) %>%
      left_join(min.tresholds, by=c('prior.info')) %>%
     arrange(repN, ve.new.trial,prior.info ,total_pop) %>%
-   group_by(repN,  ve.new.trial,prior.info) %>%
+   group_by(repN,  ve.new.trial,prior.info,prior.label) %>%
     mutate( eff30 = 1*(p_0_70>test.threshold30),
               stop30 = cumsum(eff30) ,
             stop30 = if_else(stop30>=1,1,0),
             eff0 = 1*(p_0>test.threshold0),
               stop0 = cumsum(eff0) ,
             stop0 = if_else(stop0>=1,1,0),
+            
+            new.ve.label = if_else(ve.new.trial==0, 'A) VE=0%',
+                            if_else(ve.new.trial==44.4, 'B) VE=44.4%',
+                            if_else(ve.new.trial==90, 'C) VE=90%', NA_character_)))
             ) %>%
     ungroup() %>%
-    group_by(total_pop, ve.new.trial,prior.info) %>%
+    group_by(total_pop, ve.new.trial,new.ve.label,prior.info,prior.label) %>%
       summarize(prop_stopped0 = mean(stop0),
                 prop_stopped30 = mean(stop30))
    
@@ -760,15 +816,19 @@ threshold_application <- function( set.eval.points){
     filter(total_pop %in% set.eval.points ) %>%
      left_join(min.tresholds, by=c('prior.info')) %>%
     arrange(repN, ve.new.trial,prior.info ,total_pop) %>%
-   group_by(repN,  ve.new.trial,prior.info) %>%
+   group_by(repN,  ve.new.trial,prior.info,prior.label) %>%
     mutate( eff30 = 1*(p_0_70>test.threshold30),
               stopN30 = cumsum(eff30), 
                 stopN30=if_else(stopN30==0 & total_pop==6000,1,stopN30), 
             eff0 = 1*(p_0>test.threshold0),
               stopN0 = cumsum(eff0), 
-                stopN0=if_else(stopN0==0 & total_pop==6000,1,stopN0)  )  %>%
+                stopN0=if_else(stopN0==0 & total_pop==6000,1,stopN0),
+            new.ve.label = if_else(ve.new.trial==0, 'A) VE=0%',
+                            if_else(ve.new.trial==44.4, 'B) VE=44.4%',
+                            if_else(ve.new.trial==90, 'C) VE=90%', NA_character_)))
+            )  %>%
     ungroup() %>%
-         group_by(total_pop, ve.new.trial,prior.info) 
+         group_by(total_pop, ve.new.trial,new.ve.label,prior.info) 
 
    
   stopped_efficacy_Pop2a <- stopped_efficacy_Pop1 %>%
@@ -781,53 +841,60 @@ threshold_application <- function( set.eval.points){
    
    ave_pop_stop0 <- stopped_efficacy_Pop2a %>%
        ungroup() %>%
-       group_by(ve.new.trial,prior.info) %>%
+       group_by(ve.new.trial,prior.info,prior.label) %>%
        summarize(ave_pop_stop0=mean(total_pop))
    
   ave_pop_stop30 <- stopped_efficacy_Pop2b %>%
        ungroup() %>%
-       group_by(ve.new.trial,prior.info) %>%
+       group_by(ve.new.trial,prior.info,prior.label) %>%
        summarize(ave_pop_stop30=mean(total_pop))
    
   ave_pop_stop <- ave_pop_stop0 %>%
     full_join(ave_pop_stop30, by=c('ve.new.trial','prior.info'))
      
-   p1a <- ggplot(seq.tresholds, aes( x=test.threshold, y=prop_stopped0, group=prior.info, color=prior.info)) + 
+   p1a <- ggplot(seq.tresholds, aes( x=test.threshold, y=prop_stopped0, group=prior.label, color=prior.label, shape=prior.label)) + 
   geom_line() +
   theme_classic() +
   geom_hline(yintercept=0.05)+
+       guides(color = guide_legend(title = "Prior type") ,shape = guide_legend(title = "Prior type"))+
     theme(text=element_text( family="serif"))
 p1a
 
 
 p2a <- stopped_efficacy1 %>%
   filter( prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)"  )) %>%
-ggplot(aes( x=total_pop, y=prop_stopped0, group=prior.info, color=prior.info)) +
+ggplot(aes( x=total_pop, y=prop_stopped0, group=prior.label, color=prior.label, shape=prior.label, linetype=prior.label )) +
   geom_line() +
     geom_point() +
-  facet_wrap(~ ve.new.trial) +
+  facet_wrap(~ new.ve.label) +
   theme_classic() +
+  guides(color = guide_legend(title = "Prior type") ,shape = guide_legend(title = "Prior type"),linetype = guide_legend(title = "Prior type"))+
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >X% prob that effect is >0%VE')+
-    theme(text=element_text( family="serif"))
+    theme(text=element_text( family="serif")) +
+     theme( strip.background = element_blank() )
 
 p2a1 <- stopped_efficacy1 %>%
-ggplot(aes( x=total_pop, y=prop_stopped0, group=prior.info, color=prior.info)) +
+ggplot(aes( x=total_pop, y=prop_stopped0, group=prior.label, color=prior.label, shape=prior.label)) +
   geom_line() +
     geom_point() +
-  facet_wrap(~ ve.new.trial) +
+  facet_wrap(~ new.ve.label) +
+     theme( strip.background = element_blank() )+
   theme_classic() +
+    guides(color = guide_legend(title = "Prior type") ,shape = guide_legend(title = "Prior type"))+
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >X% prob that effect is >0%VE')+
     theme(text=element_text( family="serif"))
 
 
 p2b <- stopped_efficacy1 %>%
-ggplot(aes( x=total_pop, y=prop_stopped30, group=prior.info, color=prior.info)) +
+ggplot(aes( x=total_pop, y=prop_stopped30, group=prior.label, color=prior.label, shape=prior.label)) +
   geom_line() +
     geom_point() +
-  facet_wrap(~ ve.new.trial) +
+  facet_wrap(~ new.ve.label) +
   theme_classic() +
+     theme( strip.background = element_blank() )+
+    guides(color = guide_legend(title = "Prior type") ,shape = guide_legend(title = "Prior type"))+
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >X% prob that effect is >30%VE')+
     theme(text=element_text( family="serif"))
@@ -866,19 +933,8 @@ write.csv(tab1, './Results/Table_sequential_probs.csv')
 
 ### Figure 2 for manuscript
 
-```{r, fig.width=6, fig.height=3}
+```{r, fig.width=6, fig.height=3.5}
 seq.results1$p2a+
-  ggtitle('') +
-  ylab('Proportion of trials stopped for efficacy') + 
-  xlab('Total Number of Participants')+
-  theme(axis.text.x=element_text(angle=45, hjust=1))
-
-```
-
-### Figure S2
-
-```{r, fig.width=6, fig.height=3}
-seq.results1$p2a1+
   ggtitle('') +
   ylab('Proportion of trials stopped for efficacy') + 
   xlab('Total Number of Participants')+
@@ -888,12 +944,25 @@ seq.results1$p2a1+
 
 ### Figure S3
 
-```{r, fig.width=6, fig.height=3}
+```{r, fig.width=6, fig.height=3.5}
+seq.results1$p2a1+
+  ggtitle('') +
+  ylab('Proportion of trials stopped for efficacy') + 
+  xlab('Total Number of Participants')+
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+     theme( strip.background = element_blank() )
+
+```
+
+### Figure S4
+
+```{r, fig.width=6, fig.height=3.5}
 seq.results1$p2b+
   ggtitle('') +
   ylab('Proportion of trials stopped for efficacy') + 
   xlab('Total Number of Participant')+
-  theme(axis.text.x=element_text(angle=45, hjust=1))
+  theme(axis.text.x=element_text(angle=45, hjust=1))+
+     theme( strip.background = element_blank() )
 
 ```
 
@@ -953,30 +1022,37 @@ ggplot(aes( x=total_pop, y=prop_futile_30, group=prior.info, color=prior.info)) 
     theme(text=element_text( family="serif"))
 ```
 
-### Power for sequential trial with looks every 1000 people, no control of type I error Figure SX
+### Power for sequential trial with looks every 1000 people, no control of type I error Figure S5
 
-```{r, fig.width=6, fig.height=3}
+```{r, fig.width=6, fig.height=3.5}
 stopped_efficacy1 =probs %>%
-  filter(total_pop %in% c(1000,2000, 3000,4000, 5000, 6000) & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3~U(0,2)"  )) %>%
+  filter(total_pop %in% c(1000,2000, 3000,4000, 5000, 6000) & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)" )) %>%
   arrange(repN, ve.new.trial,prior.info ,total_pop) %>%
- group_by(repN,  ve.new.trial,prior.info) %>%
+ group_by(repN,  ve.new.trial,prior.info,prior.label) %>%
   mutate( eff = 1*(p_0>0.95),
             stop = cumsum(eff) ,
           stop = if_else(stop>=1,1,0)) %>%
   ungroup() %>%
-  group_by(total_pop, ve.new.trial,prior.info) %>%
-    summarize(prop_stopped = mean(stop))        
+  group_by(total_pop, ve.new.trial,prior.info,prior.label) %>%
+    summarize(prop_stopped = mean(stop))    %>%
+  mutate( new.ve.label = if_else(ve.new.trial==0, 'A) VE=0%',
+                            if_else(ve.new.trial==44.4, 'B) VE=44.4%',
+                            if_else(ve.new.trial==90, 'C) VE=90%', NA_character_)))
+          )
 
 
 p1a <- stopped_efficacy1 %>%
-ggplot(aes( x=total_pop, y=prop_stopped, group=prior.info, color=prior.info)) +
+ggplot(aes( x=total_pop, y=prop_stopped, group=prior.label, color=prior.label)) +
   geom_line() +
     geom_point() +
-  facet_wrap(~ ve.new.trial) +
+  facet_wrap(~ new.ve.label) +
   theme_classic() +
   geom_hline(yintercept = c(0.05, 0.8), lty=2, col='gray')+
   ggtitle('Cumulative proportion with >95% prob that effect is >0%VE')+
-    theme(text=element_text( family="serif"))
+    theme(text=element_text( family="serif"))+
+     theme( strip.background = element_blank() )+
+  ylab("Proportion of trials stopped for efficacy")+
+  xlab('Total number of participants')
 ggplotly(p1a)
 p1a
 ```
@@ -1127,6 +1203,21 @@ obs_data %>%
   geom_line(alpha=0.1) +
   theme_classic() +
   ylim(0.2, 2)
+```
+
+```{r}
+obs_data %>%
+  filter(ve.new.trial==0)  %>%
+  ggplot( aes(x=pop, y=obs_RR, group=repN)) +
+  geom_line(alpha=0.1) +
+  theme_classic() +
+  ylim(0.2, 2)
+
+obs_data %>%
+  filter(ve.new.trial==0 & pop==3000 ) %>%
+   ggplot( aes(x=N_events, y=obs_RR)) +
+  geom_point()+
+  theme_classic() 
 ```
 
 ```{r}
