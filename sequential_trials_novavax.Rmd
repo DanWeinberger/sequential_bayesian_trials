@@ -598,76 +598,82 @@ obs_data %>%
 
 ### Figure 1
 
+
 ```{r, fig.width=4, fig.height=7}
 fig2a <- probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
   filter( ve.new.trial==44.4 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)"  )) %>%
   mutate(Pooling_type = as.factor(Pooling_type),
-         rr_ucl=exp(ucl),
-         rr_lcl=exp(lcl),
-         rr_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
-         rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
+         VE = 100*(1-exp(parm_mean)),
+         VE_ucl=100*(1-exp(ucl)),
+         VE_lcl=100*(1-exp(lcl)),
+         obs_VE = 100*(1-obs_RR),
+         #VE_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
+        # VE_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
          Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 
                                'With pooling')) %>%
-ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
+ggplot( aes(x=pop*2, y=(VE), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
-   geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
-                   ymax=rr_ucl), alpha=0.3) +
+   geom_ribbon( aes(x=pop*2, ymin=VE_lcl, 
+                   ymax=VE_ucl), alpha=0.3) +
   facet_wrap(~Prior.label) +
-  ylab('Rate ratio') +
+  ylab('Vaccine effectiveness (%)') +
   xlab('Total Participants')+
-  geom_line(aes(x=pop*2, y=obs_RR), color='black', lty=3)+
-  ylim(0,3) +
-  geom_hline(yintercept=1, lty=2)+
-  ylab('Risk Ratio') +
-    theme(text=element_text( family="serif"))+
+  geom_line(aes(x=pop*2, y=(obs_VE)), color='black', lty=3)+
+  coord_cartesian( ylim=c(-10,100)) +
+  geom_hline(yintercept=44.4, lty=2)+
+    theme(text=element_text( family="serif"))
   
 
 fig2b <- probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
-  filter( ve.new.trial==90 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)" )) %>%
+  filter( ve.new.trial==90 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)"  )) %>%
   mutate(Pooling_type = as.factor(Pooling_type),
-         rr_ucl=exp(ucl),
-         rr_lcl=exp(lcl),
-         rr_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
-          rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
-         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 'With pooling')) %>%
-  ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
+         VE = 100*(1-exp(parm_mean)),
+         VE_ucl=100*(1-exp(ucl)),
+         VE_lcl=100*(1-exp(lcl)),
+         obs_VE = 100*(1-obs_RR),
+         #VE_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
+        # VE_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
+         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 
+                               'With pooling')) %>%
+ggplot( aes(x=pop*2, y=(VE), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
-   geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
-                   ymax=rr_ucl), alpha=0.3) +
+   geom_ribbon( aes(x=pop*2, ymin=VE_lcl, 
+                   ymax=VE_ucl), alpha=0.3) +
   facet_wrap(~Prior.label) +
-  ylab('Rate ratio') +
+  ylab('Vaccine effectiveness (%)') +
   xlab('Total Participants')+
-  geom_line(aes(x=pop*2, y=obs_RR), color='black', lty=3)+
-  ylim(0,3) +
-  geom_hline(yintercept=1, lty=2)+
-  ylab('Risk Ratio') +
+  geom_line(aes(x=pop*2, y=(obs_VE)), color='black', lty=3)+
+  coord_cartesian( ylim=c(-10,100)) +
+  geom_hline(yintercept=90, lty=2)+
     theme(text=element_text( family="serif"))
 
 fig2c <- probs %>%
     left_join(obs_data, by=c('repN','pop','ve.new.trial')) %>%
-  filter( ve.new.trial==0 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)" )) %>%
+  filter( ve.new.trial==0 & Pooling_type != 'Full' & repN==1 & prior.info %in% c("N(0,3.32)", "N(\u03B4\u2081,\u03C3\u00B2); \u03C3\u00B2~IG(0.01,0.01)"  )) %>%
   mutate(Pooling_type = as.factor(Pooling_type),
-         rr_ucl=exp(ucl),
-         rr_lcl=exp(lcl),
-         rr_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
-        rr_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
-         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 'With pooling')) %>%
-  ggplot( aes(x=pop*2, y=exp(parm_mean), group=interaction(repN,prior.info))) +
+         VE = 100*(1-exp(parm_mean)),
+         VE_ucl=100*(1-exp(ucl)),
+         VE_lcl=100*(1-exp(lcl)),
+         obs_VE = 100*(1-obs_RR),
+         #VE_ucl=if_else(rr_ucl>=4,3.99,rr_ucl),
+        # VE_lcl=if_else(rr_lcl<0.01,0.01,rr_lcl),
+         Prior.label = if_else(prior.info == "N(0,3.32)", 'No pooling', 
+                               'With pooling')) %>%
+ggplot( aes(x=pop*2, y=(VE), group=interaction(repN,prior.info))) +
   geom_line( alpha=1) +
   theme_classic() +
-   geom_ribbon( aes(x=pop*2, ymin=rr_lcl, 
-                   ymax=rr_ucl), alpha=0.3) +
+   geom_ribbon( aes(x=pop*2, ymin=VE_lcl, 
+                   ymax=VE_ucl), alpha=0.3) +
   facet_wrap(~Prior.label) +
-  ylab('Rate ratio') +
+  ylab('Vaccine effectiveness (%)') +
   xlab('Total Participants')+
-  geom_line(aes(x=pop*2, y=obs_RR), color='black', lty=3)+
-  ylim(0,3) +
-  geom_hline(yintercept=1, lty=2)+
-  ylab('Risk ratio') +
+  geom_line(aes(x=pop*2, y=(obs_VE)), color='black', lty=3)+
+  coord_cartesian( ylim=c(-50,50)) +
+  geom_hline(yintercept=0, lty=2)+
     theme(text=element_text( family="serif"))
 
 (fig2a+ ggtitle('True effectiveness in new trial=44.4%') +     theme( strip.background = element_blank() ))/
