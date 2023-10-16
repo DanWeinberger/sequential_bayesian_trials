@@ -676,10 +676,16 @@ ggplot( aes(x=pop*2, y=(VE), group=interaction(repN,prior.info))) +
   geom_hline(yintercept=0, lty=2)+
     theme(text=element_text( family="serif"))
 
-(fig2a+ ggtitle('True effectiveness in new trial=44.4%') +     theme( strip.background = element_blank() ))/
+fig1 <- (fig2a+ ggtitle('True effectiveness in new trial=44.4%') +     theme( strip.background = element_blank() ))/
   (fig2b+ ggtitle('True effectiveness in new trial=90%')  +  theme( strip.background = element_blank() ))/
   (fig2c+ ggtitle('True effectiveness in new trial=0%')+     theme( strip.background = element_blank() ) ) + 
   plot_annotation(tag_levels = 'A')
+
+fig1
+
+tiff("./Results/Figs/fig1.tiff",  res=600,width=4, height=7, units='in')
+fig1
+dev.off()
 ```
 
 ### Trajectories of P(benefit) for a subset of trials
@@ -940,12 +946,18 @@ write.csv(tab1, './Results/Table_sequential_probs.csv')
 ### Figure 2 for manuscript
 
 ```{r, fig.width=6, fig.height=3.5}
-seq.results1$p2a+
+fig2 <- seq.results1$p2a+
   ggtitle('') +
   ylab('Proportion of trials stopped for efficacy') + 
   xlab('Total Number of Participants')+
   theme(axis.text.x=element_text(angle=45, hjust=1))
 
+
+fig2
+
+tiff("./Results/Figs/fig2.tiff",  res=600,width=6, height=3.5, units='in')
+fig2
+dev.off()
 ```
 
 ### Figure S3
